@@ -1,0 +1,75 @@
+import logging
+import os
+import sys
+
+from telegram.ext import Application, CommandHandler, MessageHandler, filters
+
+from db import init_db
+from handlers.admin import (
+    ban_command,
+    help_command,
+    kick_command,
+    mute_command,
+    unban_command,
+    unmute_command,
+    unwarn_command,
+    warn_command,
+    warnings_command,
+)
+from handlers.moderation import handle_message
+from handlers.settings import set_command, settings_command
+
+logging.basicConfig(
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    level=logging.INFO,
+    stream=sys.stdout,
+)
+logger = logging.getLogger(__name__)
+
+
+async def post_init(app: Application) -> None:
+    await init_db()
+    logger.info("Database initialised")
+
+
+def main() -> None:
+    token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    if not token:
+        logger.error("TELEGRAM_BOT_TOKEN is not set. Exiting.")
+        sys.exit(1)
+
+    app = (
+        Application.builder()
+        .token(token)
+        .post_init(post_init)
+        .build()
+    )
+
+    app.add_handler(CommandHandler("start", help_command))
+    app.add_handler(CommandHandler("help",  help_command))
+
+    app.add_handler(CommandHandler("ban",      ban_command))
+    app.add_handler(CommandHandler("unban",    unban_command))
+    app.add_handler(CommandHandler("kick",     kick_command))
+    app.add_handler(CommandHandler("mute",     mute_command))
+    app.add_handler(CommandHandler("unmute",   unmute_command))
+    app.add_handler(CommandHandler("warn",     warn_command))
+    app.add_handler(CommandHandler("unwarn",   unwarn_command))
+    app.add_handler(CommandHandler("warnings", warnings_command))
+
+    app.add_handler(CommandHandler("settings", settings_command))
+    app.add_handler(CommandHandler("set",      set_command))
+
+    app.add_handler(
+        MessageHandler(
+            (filters.TEXT | filters.CAPTION) & ~filters.COMMAND & filters.ChatType.GROUPS,
+            handle_message,
+        )
+    )
+
+    logger.info("Bot starting — polling for updates…")
+    app.run_polling(drop_pending_updates=True)
+
+
+if __name__ == "__main__":
+    main()
