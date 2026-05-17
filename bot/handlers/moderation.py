@@ -49,11 +49,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
                 await context.bot.send_message(
                     chat.id,
-                    f"⚠️ {user.mention_html()} is sending messages too fast and has been muted for 1 minute.",
+                    f"⏳ {user.mention_html()}, estás enviando mensajes demasiado rápido. "
+                    f"Espera unos segundos. Has sido silenciado por 1 minuto.",
                     parse_mode="HTML",
                 )
             except Exception as e:
-                logger.warning("Mute flooder failed: %s", e)
+                logger.warning("Error al silenciar por flood: %s", e)
             return
 
     if settings["anti_spam"] and text:
@@ -65,11 +66,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             try:
                 await context.bot.send_message(
                     chat.id,
-                    f"🚫 {user.mention_html()}, duplicate message detected and deleted.",
+                    f"🚫 {user.mention_html()}, por favor evita enviar spam o mensajes repetitivos.",
                     parse_mode="HTML",
                 )
             except Exception as e:
-                logger.warning("Spam notice failed: %s", e)
+                logger.warning("Error al notificar spam: %s", e)
             return
 
     if settings["max_message_length"] and len(text) > settings["max_message_length"]:
@@ -77,12 +78,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await message.delete()
             await context.bot.send_message(
                 chat.id,
-                f"✂️ {user.mention_html()}, your message was deleted — it exceeded the "
-                f"{settings['max_message_length']}-character limit.",
+                f"❌ {user.mention_html()}, tu mensaje fue eliminado por exceder el límite permitido "
+                f"({settings['max_message_length']} caracteres).",
                 parse_mode="HTML",
             )
         except Exception as e:
-            logger.warning("Delete long message failed: %s", e)
+            logger.warning("Error al eliminar mensaje largo: %s", e)
         return
 
     if settings["anti_forward"] and (
@@ -99,11 +100,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await message.delete()
             await context.bot.send_message(
                 chat.id,
-                f"🔗 {user.mention_html()}, links are not allowed in this group.",
+                f"🔗 {user.mention_html()}, los enlaces no están permitidos en este grupo.",
                 parse_mode="HTML",
             )
         except Exception as e:
-            logger.warning("Delete link message failed: %s", e)
+            logger.warning("Error al eliminar enlace: %s", e)
         return
 
 

@@ -8,29 +8,29 @@ from utils.helpers import is_admin, get_target_from_message, parse_duration
 
 logger = logging.getLogger(__name__)
 
-HELP_TEXT = """🛡️ <b>Moderation Bot — Commands</b>
+HELP_TEXT = """🛡️ <b>Bot de Moderación — Comandos</b>
 
-<b>User Actions (reply to a message or pass user ID):</b>
-/ban [id] [reason] — Permanently ban a user
-/unban [id] — Unban a user
-/kick [id] [reason] — Kick a user (they can rejoin)
-/mute [id] [duration] — Restrict a user (e.g. 30m, 2h, 1d)
-/unmute [id] — Restore a user's ability to speak
-/warn [id] [reason] — Warn a user (auto-bans at the limit)
-/unwarn [id] — Remove the user's most recent warning
-/warnings [id] — List all warnings for a user
+<b>Acciones sobre usuarios</b> <i>(responde un mensaje o proporciona el ID):</i>
+/ban [id] [razón] — Banear permanentemente a un usuario
+/unban [id] — Desbanear a un usuario
+/kick [id] [razón] — Expulsar a un usuario (puede volver a unirse)
+/mute [id] [duración] — Silenciar usuario (ej: 30m, 2h, 1d)
+/unmute [id] — Quitar el silencio a un usuario
+/warn [id] [razón] — Advertir a un usuario (ban automático al alcanzar el límite)
+/unwarn [id] — Eliminar la última advertencia de un usuario
+/warnings [id] — Ver todas las advertencias de un usuario
 
-<b>Configuration:</b>
-/settings — Show current group settings
-/set antispam on|off — Toggle duplicate-message detection
-/set antiflood on|off — Toggle flood detection
-/set maxlength [n|0] — Max message length (0 = disabled)
-/set floodlimit [n] — Messages allowed per flood window
-/set floodwindow [s] — Flood detection window in seconds
-/set warnlimit [n] — Warnings before auto-ban
-/set deletelinks on|off — Auto-delete links from non-admins
-/set antiforward on|off — Auto-delete forwarded messages
-/help — Show this message"""
+<b>Configuración del grupo:</b>
+/settings — Ver la configuración actual del grupo
+/set antispam on|off — Activar/desactivar detección de spam
+/set antiflood on|off — Activar/desactivar detección de flood
+/set maxlength [n|0] — Longitud máxima de mensajes (0 = desactivado)
+/set floodlimit [n] — Mensajes permitidos por ventana de tiempo
+/set floodwindow [s] — Ventana de detección de flood en segundos
+/set warnlimit [n] — Advertencias antes del ban automático
+/set deletelinks on|off — Eliminar enlaces de no administradores
+/set antiforward on|off — Eliminar mensajes reenviados
+/help — Mostrar este mensaje"""
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -45,23 +45,25 @@ async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     user_id, mention = await get_target_from_message(update, context)
     if not user_id:
-        await update.message.reply_text("❌ Reply to a message or provide a user ID.")
+        await update.message.reply_text("❌ Responde a un mensaje o proporciona un ID de usuario.")
         return
 
     args = context.args or []
     if update.message.reply_to_message:
-        reason = " ".join(args) if args else "No reason provided"
+        reason = " ".join(args) if args else "Sin razón especificada"
     else:
-        reason = " ".join(args[1:]) if len(args) > 1 else "No reason provided"
+        reason = " ".join(args[1:]) if len(args) > 1 else "Sin razón especificada"
 
     try:
         await context.bot.ban_chat_member(chat.id, user_id)
         await update.message.reply_text(
-            f"🔨 {mention} has been <b>banned</b>.\n📝 Reason: {reason}",
+            f"🔨 Usuario expulsado correctamente.\n"
+            f"👤 Usuario: {mention}\n"
+            f"📝 Razón: {reason}",
             parse_mode="HTML",
         )
     except Exception as e:
-        await update.message.reply_text(f"❌ Failed to ban: {e}")
+        await update.message.reply_text(f"❌ No se pudo banear al usuario: {e}")
 
 
 async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -70,16 +72,16 @@ async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     user_id, mention = await get_target_from_message(update, context)
     if not user_id:
-        await update.message.reply_text("❌ Reply to a message or provide a user ID.")
+        await update.message.reply_text("❌ Responde a un mensaje o proporciona un ID de usuario.")
         return
     try:
         await context.bot.unban_chat_member(chat.id, user_id, only_if_banned=True)
         await update.message.reply_text(
-            f"✅ {mention} has been <b>unbanned</b>.",
+            f"✅ El usuario {mention} ha sido <b>desbaneado</b> correctamente.",
             parse_mode="HTML",
         )
     except Exception as e:
-        await update.message.reply_text(f"❌ Failed to unban: {e}")
+        await update.message.reply_text(f"❌ No se pudo desbanear al usuario: {e}")
 
 
 async def kick_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -88,24 +90,26 @@ async def kick_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     user_id, mention = await get_target_from_message(update, context)
     if not user_id:
-        await update.message.reply_text("❌ Reply to a message or provide a user ID.")
+        await update.message.reply_text("❌ Responde a un mensaje o proporciona un ID de usuario.")
         return
 
     args = context.args or []
     if update.message.reply_to_message:
-        reason = " ".join(args) if args else "No reason provided"
+        reason = " ".join(args) if args else "Sin razón especificada"
     else:
-        reason = " ".join(args[1:]) if len(args) > 1 else "No reason provided"
+        reason = " ".join(args[1:]) if len(args) > 1 else "Sin razón especificada"
 
     try:
         await context.bot.ban_chat_member(chat.id, user_id)
         await context.bot.unban_chat_member(chat.id, user_id)
         await update.message.reply_text(
-            f"👢 {mention} has been <b>kicked</b>.\n📝 Reason: {reason}",
+            f"🔨 Usuario expulsado correctamente.\n"
+            f"👤 Usuario: {mention}\n"
+            f"📝 Razón: {reason}",
             parse_mode="HTML",
         )
     except Exception as e:
-        await update.message.reply_text(f"❌ Failed to kick: {e}")
+        await update.message.reply_text(f"❌ No se pudo expulsar al usuario: {e}")
 
 
 async def mute_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -114,7 +118,7 @@ async def mute_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     user_id, mention = await get_target_from_message(update, context)
     if not user_id:
-        await update.message.reply_text("❌ Reply to a message or provide a user ID.")
+        await update.message.reply_text("❌ Responde a un mensaje o proporciona un ID de usuario.")
         return
 
     args = context.args or []
@@ -123,10 +127,10 @@ async def mute_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     duration = parse_duration(duration_str) if duration_str else 0
 
     until_date = None
-    duration_text = "indefinitely"
+    duration_text = "indefinidamente"
     if duration:
         until_date = datetime.now(timezone.utc) + timedelta(seconds=duration)
-        duration_text = f"for {duration_str}"
+        duration_text = f"por {duration_str}"
 
     try:
         await context.bot.restrict_chat_member(
@@ -136,11 +140,13 @@ async def mute_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             until_date=until_date,
         )
         await update.message.reply_text(
-            f"🔇 {mention} has been <b>muted</b> {duration_text}.",
+            f"🔇 Usuario silenciado correctamente.\n"
+            f"👤 Usuario: {mention}\n"
+            f"⏱️ Duración: {duration_text}",
             parse_mode="HTML",
         )
     except Exception as e:
-        await update.message.reply_text(f"❌ Failed to mute: {e}")
+        await update.message.reply_text(f"❌ No se pudo silenciar al usuario: {e}")
 
 
 async def unmute_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -149,7 +155,7 @@ async def unmute_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     user_id, mention = await get_target_from_message(update, context)
     if not user_id:
-        await update.message.reply_text("❌ Reply to a message or provide a user ID.")
+        await update.message.reply_text("❌ Responde a un mensaje o proporciona un ID de usuario.")
         return
     try:
         await context.bot.restrict_chat_member(
@@ -172,11 +178,11 @@ async def unmute_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ),
         )
         await update.message.reply_text(
-            f"🔊 {mention} has been <b>unmuted</b>.",
+            f"🔊 El silencio de {mention} ha sido levantado correctamente.",
             parse_mode="HTML",
         )
     except Exception as e:
-        await update.message.reply_text(f"❌ Failed to unmute: {e}")
+        await update.message.reply_text(f"❌ No se pudo quitar el silencio al usuario: {e}")
 
 
 async def warn_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -185,14 +191,14 @@ async def warn_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     user_id, mention = await get_target_from_message(update, context)
     if not user_id:
-        await update.message.reply_text("❌ Reply to a message or provide a user ID.")
+        await update.message.reply_text("❌ Responde a un mensaje o proporciona un ID de usuario.")
         return
 
     args = context.args or []
     if update.message.reply_to_message:
-        reason = " ".join(args) if args else "No reason provided"
+        reason = " ".join(args) if args else "Sin razón especificada"
     else:
-        reason = " ".join(args[1:]) if len(args) > 1 else "No reason provided"
+        reason = " ".join(args[1:]) if len(args) > 1 else "Sin razón especificada"
 
     settings = await get_settings(chat.id)
     warn_limit = settings["warn_limit"]
@@ -203,16 +209,21 @@ async def warn_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.ban_chat_member(chat.id, user_id)
             await clear_warnings(chat.id, user_id)
             await update.message.reply_text(
-                f"⚠️ {mention} warned ({warn_count}/{warn_limit}): {reason}\n"
-                f"🔨 Warning limit reached — user has been <b>auto-banned</b>.",
+                f"⚠️ Advertencia agregada.\n"
+                f"👤 Usuario: {mention}\n"
+                f"📝 Razón: {reason}\n"
+                f"🔢 Advertencias: {warn_count}/{warn_limit}\n\n"
+                f"🔨 Límite alcanzado — el usuario ha sido <b>baneado automáticamente</b>.",
                 parse_mode="HTML",
             )
         except Exception as e:
-            await update.message.reply_text(f"❌ Auto-ban failed: {e}")
+            await update.message.reply_text(f"❌ No se pudo aplicar el ban automático: {e}")
     else:
         await update.message.reply_text(
-            f"⚠️ {mention} has been <b>warned</b> ({warn_count}/{warn_limit}).\n"
-            f"📝 Reason: {reason}",
+            f"⚠️ Advertencia agregada.\n"
+            f"👤 Usuario: {mention}\n"
+            f"📝 Razón: {reason}\n"
+            f"🔢 Advertencias: {warn_count}/{warn_limit}",
             parse_mode="HTML",
         )
 
@@ -223,7 +234,7 @@ async def unwarn_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     user_id, mention = await get_target_from_message(update, context)
     if not user_id:
-        await update.message.reply_text("❌ Reply to a message or provide a user ID.")
+        await update.message.reply_text("❌ Responde a un mensaje o proporciona un ID de usuario.")
         return
 
     removed = await remove_warning(chat.id, user_id)
@@ -231,13 +242,14 @@ async def unwarn_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         remaining = await get_warnings(chat.id, user_id)
         settings = await get_settings(chat.id)
         await update.message.reply_text(
-            f"✅ Last warning removed from {mention}. "
-            f"Now at {len(remaining)}/{settings['warn_limit']}.",
+            f"✅ Última advertencia eliminada.\n"
+            f"👤 Usuario: {mention}\n"
+            f"🔢 Advertencias restantes: {len(remaining)}/{settings['warn_limit']}",
             parse_mode="HTML",
         )
     else:
         await update.message.reply_text(
-            f"ℹ️ {mention} has no warnings to remove.",
+            f"ℹ️ {mention} no tiene advertencias registradas.",
             parse_mode="HTML",
         )
 
@@ -248,7 +260,7 @@ async def warnings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     user_id, mention = await get_target_from_message(update, context)
     if not user_id:
-        await update.message.reply_text("❌ Reply to a message or provide a user ID.")
+        await update.message.reply_text("❌ Responde a un mensaje o proporciona un ID de usuario.")
         return
 
     warnings = await get_warnings(chat.id, user_id)
@@ -256,12 +268,12 @@ async def warnings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not warnings:
         await update.message.reply_text(
-            f"✅ {mention} has no warnings.",
+            f"✅ {mention} no tiene advertencias registradas.",
             parse_mode="HTML",
         )
         return
 
-    lines = [f"⚠️ <b>Warnings for {mention}</b> ({len(warnings)}/{settings['warn_limit']}):\n"]
+    lines = [f"⚠️ <b>Advertencias de {mention}</b> ({len(warnings)}/{settings['warn_limit']}):\n"]
     for i, w in enumerate(warnings, 1):
         lines.append(f"{i}. {w['reason']}  <i>({w['warned_at']})</i>")
     await update.message.reply_text("\n".join(lines), parse_mode="HTML")

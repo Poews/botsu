@@ -10,16 +10,16 @@ logger = logging.getLogger(__name__)
 VALID_SETTINGS = {
     "antispam":    ("anti_spam",           "on/off"),
     "antiflood":   ("anti_flood",          "on/off"),
-    "maxlength":   ("max_message_length",  "number (0 = disabled)"),
-    "floodlimit":  ("flood_limit",         "number of messages"),
-    "floodwindow": ("flood_window",        "seconds"),
-    "warnlimit":   ("warn_limit",          "number of warnings before auto-ban"),
+    "maxlength":   ("max_message_length",  "número (0 = desactivado)"),
+    "floodlimit":  ("flood_limit",         "número de mensajes"),
+    "floodwindow": ("flood_window",        "segundos"),
+    "warnlimit":   ("warn_limit",          "número de advertencias antes del ban automático"),
     "deletelinks": ("delete_links",        "on/off"),
     "antiforward": ("anti_forward",        "on/off"),
 }
 
-ON_VALUES  = {"on", "true", "yes", "1", "enable"}
-OFF_VALUES = {"off", "false", "no", "0", "disable"}
+ON_VALUES  = {"on", "true", "yes", "1", "enable", "activar", "si", "sí"}
+OFF_VALUES = {"off", "false", "no", "0", "disable", "desactivar"}
 
 
 async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -30,23 +30,23 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     s = await get_settings(chat.id)
 
     def yn(val):
-        return "✅ On" if val else "❌ Off"
+        return "✅ Activado" if val else "❌ Desactivado"
 
     def ml(val):
-        return f"{val} chars" if val else "❌ Disabled"
+        return f"{val} caracteres" if val else "❌ Desactivado"
 
     text = (
-        f"⚙️ <b>Settings — {chat.title}</b>\n\n"
-        f"🛡️ Anti-spam:          {yn(s['anti_spam'])}\n"
-        f"🌊 Anti-flood:         {yn(s['anti_flood'])}\n"
-        f"   ├ Limit:            {s['flood_limit']} msgs\n"
-        f"   └ Window:           {s['flood_window']}s\n"
-        f"✂️ Max msg length:     {ml(s['max_message_length'])}\n"
-        f"⚠️ Warn limit:         {s['warn_limit']} warns → auto-ban\n"
-        f"🔗 Delete links:       {yn(s['delete_links'])}\n"
-        f"📤 Anti-forward:       {yn(s['anti_forward'])}\n\n"
-        f"Use /set [option] [value] to change.\n"
-        f"Use /help to see all commands."
+        f"⚙️ <b>Configuración — {chat.title}</b>\n\n"
+        f"🛡️ Anti-spam:              {yn(s['anti_spam'])}\n"
+        f"🌊 Anti-flood:             {yn(s['anti_flood'])}\n"
+        f"   ├ Límite:               {s['flood_limit']} mensajes\n"
+        f"   └ Ventana:              {s['flood_window']}s\n"
+        f"✂️ Longitud máxima:        {ml(s['max_message_length'])}\n"
+        f"⚠️ Límite de advertencias: {s['warn_limit']} → ban automático\n"
+        f"🔗 Eliminar enlaces:       {yn(s['delete_links'])}\n"
+        f"📤 Anti-reenvío:           {yn(s['anti_forward'])}\n\n"
+        f"Usa /set [opción] [valor] para cambiar la configuración.\n"
+        f"Usa /help para ver todos los comandos."
     )
     await update.message.reply_text(text, parse_mode="HTML")
 
@@ -61,7 +61,7 @@ async def set_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not args or len(args) < 2:
         keys = ", ".join(VALID_SETTINGS)
         await update.message.reply_text(
-            f"❌ Usage: /set [option] [value]\n\nOptions: <code>{keys}</code>",
+            f"❌ Uso: /set [opción] [valor]\n\nOpciones disponibles: <code>{keys}</code>",
             parse_mode="HTML",
         )
         return
@@ -72,7 +72,7 @@ async def set_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if option not in VALID_SETTINGS:
         keys = ", ".join(VALID_SETTINGS)
         await update.message.reply_text(
-            f"❌ Unknown option.\nAvailable: <code>{keys}</code>",
+            f"❌ Opción desconocida.\nDisponibles: <code>{keys}</code>",
             parse_mode="HTML",
         )
         return
@@ -85,7 +85,10 @@ async def set_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif value_str in OFF_VALUES:
             value = 0
         else:
-            await update.message.reply_text("❌ Value must be <b>on</b> or <b>off</b>.", parse_mode="HTML")
+            await update.message.reply_text(
+                "❌ El valor debe ser <b>on</b> (activar) o <b>off</b> (desactivar).",
+                parse_mode="HTML",
+            )
             return
     else:
         try:
@@ -93,11 +96,11 @@ async def set_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if value < 0:
                 raise ValueError
         except ValueError:
-            await update.message.reply_text("❌ Value must be a non-negative number.")
+            await update.message.reply_text("❌ El valor debe ser un número positivo.")
             return
 
     await update_setting(chat.id, db_key, value)
     await update.message.reply_text(
-        f"✅ <b>{option}</b> → <b>{args[1]}</b>",
+        f"⚙️ Configuración actualizada correctamente.\n<b>{option}</b> → <b>{args[1]}</b>",
         parse_mode="HTML",
     )
