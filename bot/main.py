@@ -25,6 +25,12 @@ from handlers.admin import (
 from handlers.moderation import handle_message
 from handlers.stats import estadisticas_command
 from handlers.report import report_command, reportes_command
+from handlers.blacklist import (
+    addpalabra_command,
+    quitarpalabra_command,
+    palabras_command,
+    limpiarpalabras_command,
+)
 from handlers.personal import (
     borrarpersonal_command,
     catch_personal_command,
@@ -82,8 +88,14 @@ def main() -> None:
     app.add_handler(CommandHandler("estadisticas",   estadisticas_command))
 
     # Reports
-    app.add_handler(CommandHandler("report",         report_command))
-    app.add_handler(CommandHandler("reportes",       reportes_command))
+    app.add_handler(CommandHandler("report",          report_command))
+    app.add_handler(CommandHandler("reportes",        reportes_command))
+
+    # Blacklist
+    app.add_handler(CommandHandler("addpalabra",      addpalabra_command))
+    app.add_handler(CommandHandler("quitarpalabra",   quitarpalabra_command))
+    app.add_handler(CommandHandler("palabras",        palabras_command))
+    app.add_handler(CommandHandler("limpiarpalabras", limpiarpalabras_command))
 
     # Personal commands management
     app.add_handler(CommandHandler("personal",       personal_command))

@@ -7,6 +7,7 @@ from telegram.ext import ContextTypes
 
 from db import get_settings
 from handlers.stats import increment_stat
+from handlers.blacklist import check_blacklist
 from utils.helpers import is_admin
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     settings = await get_settings(chat.id)
     text = message.text or message.caption or ""
     name = _display_name(user)
+
+    # Blacklist check runs first
+    if text and await check_blacklist(update, context, text):
+        return
 
     if settings["anti_flood"]:
         if _is_flooding(chat.id, user.id, settings["flood_limit"], settings["flood_window"]):
