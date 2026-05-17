@@ -4,6 +4,7 @@ from telegram import Update, ChatPermissions
 from telegram.ext import ContextTypes
 
 from db import get_settings, add_warning, get_warnings, remove_warning, clear_warnings
+from handlers.stats import increment_stat
 from utils.helpers import is_admin, get_target_from_message, parse_duration
 
 logger = logging.getLogger(__name__)
@@ -145,6 +146,7 @@ async def mute_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"⏱️ Duración: {duration_text}",
             parse_mode="HTML",
         )
+        await increment_stat(chat.id, user_id, str(user_id), "mutes")
     except Exception as e:
         await update.message.reply_text(f"❌ No se pudo silenciar al usuario: {e}")
 

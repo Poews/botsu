@@ -6,6 +6,7 @@ from telegram import Update, ChatPermissions
 from telegram.ext import ContextTypes
 
 from db import get_settings
+from handlers.stats import increment_stat
 from utils.helpers import is_admin
 
 logger = logging.getLogger(__name__)
@@ -17,6 +18,11 @@ URL_PATTERN = re.compile(
     r"(https?://[^\s]+|www\.[^\s]+|t\.me/[^\s]+)",
     re.IGNORECASE,
 )
+
+
+def _display_name(user) -> str:
+    parts = [user.first_name or "", user.last_name or ""]
+    return " ".join(p for p in parts if p).strip() or str(user.id)
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -32,6 +38,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     settings = await get_settings(chat.id)
     text = message.text or message.caption or ""
+    name = _display_name(user)
 
     if settings["anti_flood"]:
         if _is_flooding(chat.id, user.id, settings["flood_limit"], settings["flood_window"]):
@@ -55,6 +62,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
             except Exception as e:
                 logger.warning("Error al silenciar por flood: %s", e)
+            await increment_stat(chat.id, user.id, name, "floods")
+            await increment_stat(chat.id, user.id, name, "mutes")
             return
 
     if settings["anti_spam"] and text:
@@ -71,6 +80,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
             except Exception as e:
                 logger.warning("Error al notificar spam: %s", e)
+            await increment_stat(chat.id, user.id, name, "spam")
             return
 
     if settings["max_message_length"] and len(text) > settings["max_message_length"]:
@@ -106,6 +116,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.warning("Error al eliminar enlace: %s", e)
         return
+
+    # Message passed all checks — count it
+    await increment_stat(chat.id, user.id, name, "messages")
 
 
 def _is_flooding(chat_id: int, user_id: int, limit: int, window: int) -> bool:
