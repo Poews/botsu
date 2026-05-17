@@ -2,7 +2,13 @@ import logging
 import os
 import sys
 
-from telegram.ext import Application, CommandHandler, MessageHandler, filters
+from telegram.ext import (
+    Application,
+    ChatMemberHandler,
+    CommandHandler,
+    MessageHandler,
+    filters,
+)
 
 from db import init_db
 from handlers.admin import (
@@ -18,6 +24,7 @@ from handlers.admin import (
 )
 from handlers.moderation import handle_message
 from handlers.settings import set_command, settings_command
+from handlers.welcome import welcome_new_member
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -45,9 +52,11 @@ def main() -> None:
         .build()
     )
 
-    app.add_handler(CommandHandler("start", help_command))
-    app.add_handler(CommandHandler("help",  help_command))
+    # Help & info
+    app.add_handler(CommandHandler("start",    help_command))
+    app.add_handler(CommandHandler("help",     help_command))
 
+    # Admin actions
     app.add_handler(CommandHandler("ban",      ban_command))
     app.add_handler(CommandHandler("unban",    unban_command))
     app.add_handler(CommandHandler("kick",     kick_command))
@@ -57,9 +66,14 @@ def main() -> None:
     app.add_handler(CommandHandler("unwarn",   unwarn_command))
     app.add_handler(CommandHandler("warnings", warnings_command))
 
+    # Settings
     app.add_handler(CommandHandler("settings", settings_command))
     app.add_handler(CommandHandler("set",      set_command))
 
+    # Welcome new members (requires "Chat Member" updates to be enabled)
+    app.add_handler(ChatMemberHandler(welcome_new_member, ChatMemberHandler.CHAT_MEMBER))
+
+    # Auto-moderation on all group text messages
     app.add_handler(
         MessageHandler(
             (filters.TEXT | filters.CAPTION) & ~filters.COMMAND & filters.ChatType.GROUPS,
@@ -68,7 +82,10 @@ def main() -> None:
     )
 
     logger.info("Bot starting — polling for updates…")
-    app.run_polling(drop_pending_updates=True)
+    app.run_polling(
+        drop_pending_updates=True,
+        allowed_updates=["message", "chat_member"],
+    )
 
 
 if __name__ == "__main__":

@@ -16,9 +16,15 @@ async def init_db():
                 flood_window INTEGER DEFAULT 10,
                 warn_limit INTEGER DEFAULT 3,
                 delete_links INTEGER DEFAULT 0,
-                anti_forward INTEGER DEFAULT 0
+                anti_forward INTEGER DEFAULT 0,
+                welcome_message TEXT DEFAULT NULL
             )
         """)
+        # Migrate existing databases that don't have the welcome_message column yet
+        try:
+            await db.execute("ALTER TABLE group_settings ADD COLUMN welcome_message TEXT DEFAULT NULL")
+        except Exception:
+            pass  # Column already exists
         await db.execute("""
             CREATE TABLE IF NOT EXISTS warnings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,6 +60,7 @@ async def get_settings(chat_id: int) -> dict:
                 "warn_limit": 3,
                 "delete_links": 0,
                 "anti_forward": 0,
+                "welcome_message": None,
             }
 
 
