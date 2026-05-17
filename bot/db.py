@@ -26,6 +26,17 @@ async def init_db():
         except Exception:
             pass  # Column already exists
         await db.execute("""
+            CREATE TABLE IF NOT EXISTS personal_commands (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id INTEGER NOT NULL,
+                command_name TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(chat_id, command_name)
+            )
+        """)
+        await db.execute("""
             CREATE TABLE IF NOT EXISTS warnings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 chat_id INTEGER NOT NULL,

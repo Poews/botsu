@@ -23,6 +23,12 @@ from handlers.admin import (
     warnings_command,
 )
 from handlers.moderation import handle_message
+from handlers.personal import (
+    borrarpersonal_command,
+    catch_personal_command,
+    personal_command,
+    personales_command,
+)
 from handlers.settings import set_command, settings_command
 from handlers.welcome import welcome_new_member
 
@@ -67,8 +73,13 @@ def main() -> None:
     app.add_handler(CommandHandler("warnings", warnings_command))
 
     # Settings
-    app.add_handler(CommandHandler("settings", settings_command))
-    app.add_handler(CommandHandler("set",      set_command))
+    app.add_handler(CommandHandler("settings",       settings_command))
+    app.add_handler(CommandHandler("set",            set_command))
+
+    # Personal commands management
+    app.add_handler(CommandHandler("personal",       personal_command))
+    app.add_handler(CommandHandler("personales",     personales_command))
+    app.add_handler(CommandHandler("borrarpersonal", borrarpersonal_command))
 
     # Welcome new members (requires "Chat Member" updates to be enabled)
     app.add_handler(ChatMemberHandler(welcome_new_member, ChatMemberHandler.CHAT_MEMBER))
@@ -79,6 +90,15 @@ def main() -> None:
             (filters.TEXT | filters.CAPTION) & ~filters.COMMAND & filters.ChatType.GROUPS,
             handle_message,
         )
+    )
+
+    # Catch-all for personal commands (runs after all specific handlers, group=1)
+    app.add_handler(
+        MessageHandler(
+            filters.COMMAND & filters.ChatType.GROUPS,
+            catch_personal_command,
+        ),
+        group=1,
     )
 
     logger.info("Bot starting — polling for updates…")
