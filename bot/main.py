@@ -24,6 +24,7 @@ from handlers.admin import (
 )
 from handlers.moderation import handle_message
 from handlers.stats import estadisticas_command
+from handlers.report import report_command, reportes_command
 from handlers.personal import (
     borrarpersonal_command,
     catch_personal_command,
@@ -79,6 +80,10 @@ def main() -> None:
 
     # Stats
     app.add_handler(CommandHandler("estadisticas",   estadisticas_command))
+
+    # Reports
+    app.add_handler(CommandHandler("report",         report_command))
+    app.add_handler(CommandHandler("reportes",       reportes_command))
 
     # Personal commands management
     app.add_handler(CommandHandler("personal",       personal_command))
