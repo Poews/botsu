@@ -25,6 +25,7 @@ from handlers.admin import (
 from handlers.moderation import handle_message
 from handlers.stats import estadisticas_command
 from handlers.report import report_command, reportes_command
+from handlers.notes import nota_command, notas_command, borrarnota_command
 from handlers.blacklist import (
     addpalabra_command,
     quitarpalabra_command,
@@ -90,6 +91,11 @@ def main() -> None:
     # Reports
     app.add_handler(CommandHandler("report",          report_command))
     app.add_handler(CommandHandler("reportes",        reportes_command))
+
+    # Notes
+    app.add_handler(CommandHandler("nota",            nota_command))
+    app.add_handler(CommandHandler("notas",           notas_command))
+    app.add_handler(CommandHandler("borrarnota",      borrarnota_command))
 
     # Blacklist
     app.add_handler(CommandHandler("addpalabra",      addpalabra_command))

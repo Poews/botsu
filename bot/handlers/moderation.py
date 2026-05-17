@@ -91,14 +91,50 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if settings["max_message_length"] and len(text) > settings["max_message_length"]:
         try:
             await message.delete()
+        except Exception:
+            pass
+        # Add a warning to their count
+        from db import add_warning, clear_warnings
+        warn_count = await add_warning(chat.id, user.id, "Mensaje demasiado largo")
+        warn_limit = settings["warn_limit"]
+        # Try to notify the user via private DM first
+        dm_sent = False
+        try:
             await context.bot.send_message(
-                chat.id,
-                f"❌ {user.mention_html()}, tu mensaje fue eliminado por exceder el límite permitido "
-                f"({settings['max_message_length']} caracteres).",
+                user.id,
+                f"⚠️ Tu mensaje en <b>{chat.title}</b> fue eliminado por exceder el límite "
+                f"de {settings['max_message_length']} caracteres.\n\n"
+                f"📊 Advertencia <b>{warn_count}/{warn_limit}</b> — "
+                f"al llegar al límite serás baneado automáticamente.",
                 parse_mode="HTML",
             )
-        except Exception as e:
-            logger.warning("Error al eliminar mensaje largo: %s", e)
+            dm_sent = True
+        except Exception:
+            pass
+        # If DM failed, notify in the group briefly
+        if not dm_sent:
+            try:
+                await context.bot.send_message(
+                    chat.id,
+                    f"✂️ {user.mention_html()}, mensaje eliminado por exceder el límite "
+                    f"({settings['max_message_length']} caracteres). "
+                    f"⚠️ Advertencia <b>{warn_count}/{warn_limit}</b>.",
+                    parse_mode="HTML",
+                )
+            except Exception as e:
+                logger.warning("Error al notificar mensaje largo: %s", e)
+        # Auto-ban if limit reached
+        if warn_count >= warn_limit:
+            try:
+                await context.bot.ban_chat_member(chat.id, user.id)
+                await clear_warnings(chat.id, user.id)
+                await context.bot.send_message(
+                    chat.id,
+                    f"🔨 {user.mention_html()} alcanzó el límite de advertencias y fue <b>baneado automáticamente</b>.",
+                    parse_mode="HTML",
+                )
+            except Exception as e:
+                logger.warning("Error en auto-ban por mensajes largos: %s", e)
         return
 
     if settings["anti_forward"] and (
