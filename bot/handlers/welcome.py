@@ -1,5 +1,5 @@
 import logging
-from telegram import Update, ChatMemberUpdated, ChatMember
+from telegram import Update, ChatMemberUpdated, ChatMember, InlineKeyboardButton, InlineKeyboardMarkup, ChatPermissions
 from telegram.ext import ContextTypes
 
 from db import get_settings
@@ -7,6 +7,19 @@ from db import get_settings
 logger = logging.getLogger(__name__)
 
 DEFAULT_WELCOME = "🟢 (+) <b>{usuario}</b> es el usuario <code>{id}</code>"
+
+NO_PERMISSIONS = ChatPermissions(
+    can_send_messages=False,
+    can_send_audios=False,
+    can_send_documents=False,
+    can_send_photos=False,
+    can_send_videos=False,
+    can_send_video_notes=False,
+    can_send_voice_notes=False,
+    can_send_polls=False,
+    can_send_other_messages=False,
+    can_add_web_page_previews=False,
+)
 
 
 def _member_joined(update: ChatMemberUpdated) -> bool:
@@ -42,21 +55,38 @@ async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
     text = text.replace("{grupo}",   chat.title or "")
     text = text.replace("{id}",      str(user.id))
 
-    try:
-        await context.bot.send_message(chat.id, text, parse_mode="HTML")
-    except Exception as e:
-        logger.warning("Error al enviar bienvenida: %s", e)
-
-    if not has_username:
+    if has_username:
         try:
-            await context.bot.send_message(
-                user.id,
-                f"👋 ¡Bienvenido/a al grupo <b>{chat.title}</b>!\n\n"
-                f"📌 Notamos que <b>no tienes un @usuario</b> configurado en tu cuenta de Telegram.\n\n"
-                f"Te pedimos que establezcas uno para poder identificarte correctamente en el grupo. "
-                f"Puedes hacerlo desde:\n"
-                f"<b>Ajustes → Editar perfil → Nombre de usuario</b>",
-                parse_mode="HTML",
-            )
-        except Exception:
-            pass
+            await context.bot.send_message(chat.id, text, parse_mode="HTML")
+        except Exception as e:
+            logger.warning("Error al enviar bienvenida: %s", e)
+        return
+
+    # ── No username: mute + group notice + register pending ──────────────────
+    from handlers.verify import pending_users, NO_PERMISSIONS as _NP
+
+    try:
+        await context.bot.restrict_chat_member(chat.id, user.id, _NP)
+    except Exception as e:
+        logger.warning("Error al mutear usuario sin @: %s", e)
+
+    pending_users.setdefault(user.id, set()).add(chat.id)
+
+    bot_username = (await context.bot.get_me()).username
+    start_param  = f"verify_{chat.id}"
+    bot_url      = f"https://t.me/{bot_username}?start={start_param}"
+
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton("🤖 Verificar @usuario", url=bot_url)
+    ]])
+
+    try:
+        await context.bot.send_message(
+            chat.id,
+            f"⚠️ {user.mention_html()} no tiene <b>@usuario</b> y ha sido muteado temporalmente.\n\n"
+            f"Presiona el botón para iniciar el bot en privado, ponerte un @usuario y ser habilitado automáticamente.",
+            parse_mode="HTML",
+            reply_markup=keyboard,
+        )
+    except Exception as e:
+        logger.warning("Error al enviar aviso sin @usuario: %s", e)

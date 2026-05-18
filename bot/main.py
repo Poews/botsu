@@ -4,6 +4,7 @@ import sys
 
 from telegram.ext import (
     Application,
+    CallbackQueryHandler,
     ChatMemberHandler,
     CommandHandler,
     MessageHandler,
@@ -41,6 +42,7 @@ from handlers.personal import (
     personales_command,
 )
 from handlers.settings import set_command, settings_command
+from handlers.verify import start_verify, verify_callback
 from handlers.welcome import welcome_new_member
 
 logging.basicConfig(
@@ -70,10 +72,13 @@ def main() -> None:
     )
 
     # Help & info
-    app.add_handler(CommandHandler("start",    help_command))
+    app.add_handler(CommandHandler("start",    start_verify))
     app.add_handler(CommandHandler("help",     help_command))
     app.add_handler(CommandHandler("cmds",     cmds_command))
     app.add_handler(CommandHandler("reload",   reload_command))
+
+    # Username verification callback
+    app.add_handler(CallbackQueryHandler(verify_callback, pattern="^verify_check$"))
 
     # Admin actions
     app.add_handler(CommandHandler("ban",      ban_command))
@@ -135,7 +140,7 @@ def main() -> None:
     logger.info("Bot starting — polling for updates…")
     app.run_polling(
         drop_pending_updates=True,
-        allowed_updates=["message", "chat_member"],
+        allowed_updates=["message", "chat_member", "callback_query"],
     )
 
 
