@@ -17,6 +17,7 @@ from handlers.admin import (
     cmds_command,
     help_command,
     kick_command,
+    kickdeleted_command,
     mute_command,
     reload_command,
     say_command,
@@ -82,7 +83,10 @@ def main() -> None:
     app.add_handler(CallbackQueryHandler(verify_callback, pattern="^verify_check$"))
 
     # Say (send as bot)
-    app.add_handler(CommandHandler("say",      say_command))
+    app.add_handler(CommandHandler("say",         say_command))
+
+    # Clean deleted accounts
+    app.add_handler(CommandHandler("kickdeleted", kickdeleted_command))
 
     # Admin actions
     app.add_handler(CommandHandler("ban",      ban_command))

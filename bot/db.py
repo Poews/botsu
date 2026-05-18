@@ -182,3 +182,13 @@ async def clear_warnings(chat_id: int, user_id: int) -> None:
             (chat_id, user_id),
         )
         await db.commit()
+
+
+async def get_all_user_ids(chat_id: int) -> list[int]:
+    """Returns all user_ids ever seen in a chat (from user_stats)."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT user_id FROM user_stats WHERE chat_id = ?", (chat_id,)
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [row[0] for row in rows]

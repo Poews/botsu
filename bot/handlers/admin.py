@@ -1,9 +1,10 @@
+import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from telegram import Update, ChatPermissions
 from telegram.ext import ContextTypes
 
-from db import get_settings, add_warning, get_warnings, remove_warning, clear_warnings
+from db import get_settings, add_warning, get_warnings, remove_warning, clear_warnings, get_all_user_ids
 from handlers.stats import increment_stat
 from utils.helpers import is_admin, get_target_from_message, parse_duration
 
@@ -281,6 +282,78 @@ async def warnings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("\n".join(lines), parse_mode="HTML")
 
 
+async def kickdeleted_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /kickdeleted — expulsa todas las cuentas eliminadas del grupo.
+    Solo admins.
+    """
+    if not await is_admin(update, context):
+        return
+
+    chat = update.effective_chat
+
+    user_ids = await get_all_user_ids(chat.id)
+    if not user_ids:
+        await update.message.reply_text(
+            "ℹ️ No hay usuarios registrados todavía. "
+            "El bot solo puede revisar usuarios que hayan enviado al menos un mensaje."
+        )
+        return
+
+    status_msg = await update.message.reply_text(
+        f"🔍 Revisando <b>{len(user_ids)}</b> usuarios registrados, un momento…",
+        parse_mode="HTML",
+    )
+
+    kicked   = []
+    checked  = 0
+    BATCH    = 20  # update progress every N users
+
+    for user_id in user_ids:
+        try:
+            member = await context.bot.get_chat_member(chat.id, user_id)
+            # Deleted accounts: still in group but first_name is empty
+            if member.status in ("member", "restricted") and not member.user.first_name:
+                try:
+                    await context.bot.ban_chat_member(chat.id, user_id)
+                    await context.bot.unban_chat_member(chat.id, user_id)
+                    kicked.append(user_id)
+                except Exception:
+                    pass
+        except Exception:
+            pass  # user left, already banned, or API error
+
+        checked += 1
+        if checked % BATCH == 0:
+            try:
+                await status_msg.edit_text(
+                    f"🔍 Revisando… <b>{checked}/{len(user_ids)}</b> usuarios\n"
+                    f"🗑️ Eliminadas encontradas hasta ahora: <b>{len(kicked)}</b>",
+                    parse_mode="HTML",
+                )
+            except Exception:
+                pass
+
+        await asyncio.sleep(0.05)  # avoid hitting rate limits
+
+    if kicked:
+        result = (
+            f"✅ <b>Limpieza completada.</b>\n\n"
+            f"👥 Usuarios revisados: <b>{checked}</b>\n"
+            f"🗑️ Cuentas eliminadas expulsadas: <b>{len(kicked)}</b>\n\n"
+            f"<i>Nota: solo se revisaron usuarios con historial de mensajes en el grupo.</i>"
+        )
+    else:
+        result = (
+            f"✅ <b>Limpieza completada.</b>\n\n"
+            f"👥 Usuarios revisados: <b>{checked}</b>\n"
+            f"🗑️ Cuentas eliminadas encontradas: <b>0</b>\n\n"
+            f"<i>¡El grupo está limpio!</i>"
+        )
+
+    await status_msg.edit_text(result, parse_mode="HTML")
+
+
 async def say_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     /say <mensaje>          — (en grupo) borra tu comando y envía el texto como el bot.
@@ -363,6 +436,7 @@ async def cmds_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "  /warn — Advertir usuario\n"
         "  /unwarn — Quitar advertencia\n"
         "  /warnings — Ver advertencias de un usuario\n"
+        "  /kickdeleted — Expulsar cuentas eliminadas\n"
         "\n"
         "⚙️ <b>Configuración</b>\n"
         "  /settings — Ver configuración actual del grupo\n"
