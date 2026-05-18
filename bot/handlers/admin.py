@@ -281,6 +281,74 @@ async def warnings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("\n".join(lines), parse_mode="HTML")
 
 
+async def say_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /say <mensaje>          — (en grupo) borra tu comando y envía el texto como el bot.
+    /say <chat_id> <mensaje>— (en privado) envía el texto a ese grupo.
+    """
+    message = update.message
+    user    = update.effective_user
+    chat    = update.effective_chat
+
+    args_text = message.text.split(None, 1)
+    if len(args_text) < 2:
+        await message.reply_text("⚠️ Uso: <code>/say mensaje</code>", parse_mode="HTML")
+        return
+
+    payload = args_text[1]
+
+    # ── Desde un grupo ────────────────────────────────────────────────────────
+    if chat.type in ("group", "supergroup"):
+        if not await is_admin(update, context):
+            return
+        try:
+            await message.delete()
+        except Exception:
+            pass
+        try:
+            await context.bot.send_message(chat.id, payload, parse_mode="HTML")
+        except Exception:
+            # Retry without HTML in case of parse error
+            try:
+                await context.bot.send_message(chat.id, payload)
+            except Exception as e:
+                logger.warning("Error en /say: %s", e)
+        return
+
+    # ── Desde privado: /say <chat_id> <mensaje> ───────────────────────────────
+    parts = payload.split(None, 1)
+    if len(parts) < 2 or not parts[0].lstrip("-").isdigit():
+        await message.reply_text(
+            "⚠️ Desde privado usa:\n"
+            "<code>/say -100xxxxxxxxxx mensaje</code>",
+            parse_mode="HTML",
+        )
+        return
+
+    target_chat_id = int(parts[0])
+    text           = parts[1]
+
+    # Verify the sender is admin in that group before allowing it
+    try:
+        member = await context.bot.get_chat_member(target_chat_id, user.id)
+        if member.status not in ("administrator", "creator"):
+            await message.reply_text("⛔ Solo puedes enviar mensajes a grupos donde eres administrador.")
+            return
+    except Exception:
+        await message.reply_text("⚠️ No pude verificar tus permisos en ese grupo. ¿El bot está ahí?")
+        return
+
+    try:
+        await context.bot.send_message(target_chat_id, text, parse_mode="HTML")
+        await message.reply_text("✅ Mensaje enviado.")
+    except Exception:
+        try:
+            await context.bot.send_message(target_chat_id, text)
+            await message.reply_text("✅ Mensaje enviado (sin formato HTML).")
+        except Exception as e:
+            await message.reply_text(f"❌ Error al enviar: {e}")
+
+
 async def cmds_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/cmds — lista completa de comandos del bot."""
     text = (
@@ -300,6 +368,7 @@ async def cmds_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "  /settings — Ver configuración actual del grupo\n"
         "  /set — Cambiar una configuración\n"
         "  /reload — Limpiar caché y verificar estado\n"
+        "  /say — Enviar mensaje como el bot\n"
         "\n"
         "📝 <b>Notas</b>\n"
         "  /nota — Guardar nota sobre un usuario\n"

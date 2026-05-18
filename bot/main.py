@@ -19,6 +19,7 @@ from handlers.admin import (
     kick_command,
     mute_command,
     reload_command,
+    say_command,
     unban_command,
     unmute_command,
     unwarn_command,
@@ -79,6 +80,9 @@ def main() -> None:
 
     # Username verification callback
     app.add_handler(CallbackQueryHandler(verify_callback, pattern="^verify_check$"))
+
+    # Say (send as bot)
+    app.add_handler(CommandHandler("say",      say_command))
 
     # Admin actions
     app.add_handler(CommandHandler("ban",      ban_command))

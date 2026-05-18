@@ -6,7 +6,14 @@ from db import get_settings
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_WELCOME = "🟢 (+) <b>{usuario}</b> es el usuario <code>{id}</code>"
+DEFAULT_WELCOME = (
+    "╔═══「 🌟 BIENVENIDO/A 」═══╗\n"
+    "\n"
+    "  👤 <b>{usuario}</b>\n"
+    "  🆔 <code>{id}</code>\n"
+    "\n"
+    "╚══════════════════════════╝"
+)
 
 NO_PERMISSIONS = ChatPermissions(
     can_send_messages=False,
