@@ -15,6 +15,9 @@ logger = logging.getLogger(__name__)
 flood_tracker: dict = defaultdict(deque)
 spam_tracker: dict = defaultdict(deque)
 
+# Long-message warning tracker: {(chat_id, user_id): {"msg_id": int, "count": int}}
+longmsg_tracker: dict = {}
+
 URL_PATTERN = re.compile(
     r"(https?://[^\s]+|www\.[^\s]+|t\.me/[^\s]+)",
     re.IGNORECASE,
@@ -93,48 +96,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await message.delete()
         except Exception:
             pass
-        # Add a warning to their count
-        from db import add_warning, clear_warnings
-        warn_count = await add_warning(chat.id, user.id, "Mensaje demasiado largo")
-        warn_limit = settings["warn_limit"]
-        # Try to notify the user via private DM first
-        dm_sent = False
-        try:
-            await context.bot.send_message(
-                user.id,
-                f"⚠️ Tu mensaje en <b>{chat.title}</b> fue eliminado por exceder el límite "
-                f"de {settings['max_message_length']} caracteres.\n\n"
-                f"📊 Advertencia <b>{warn_count}/{warn_limit}</b> — "
-                f"al llegar al límite serás baneado automáticamente.",
-                parse_mode="HTML",
-            )
-            dm_sent = True
-        except Exception:
-            pass
-        # If DM failed, notify in the group briefly
-        if not dm_sent:
-            try:
-                await context.bot.send_message(
-                    chat.id,
-                    f"✂️ {user.mention_html()}, mensaje eliminado por exceder el límite "
-                    f"({settings['max_message_length']} caracteres). "
-                    f"⚠️ Advertencia <b>{warn_count}/{warn_limit}</b>.",
-                    parse_mode="HTML",
-                )
-            except Exception as e:
-                logger.warning("Error al notificar mensaje largo: %s", e)
-        # Auto-ban if limit reached
-        if warn_count >= warn_limit:
-            try:
-                await context.bot.ban_chat_member(chat.id, user.id)
-                await clear_warnings(chat.id, user.id)
-                await context.bot.send_message(
-                    chat.id,
-                    f"🔨 {user.mention_html()} alcanzó el límite de advertencias y fue <b>baneado automáticamente</b>.",
-                    parse_mode="HTML",
-                )
-            except Exception as e:
-                logger.warning("Error en auto-ban por mensajes largos: %s", e)
+        await _handle_long_message(update, context, settings)
         return
 
     if settings["anti_forward"] and (
@@ -160,6 +122,75 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Message passed all checks — count it
     await increment_stat(chat.id, user.id, name, "messages")
+
+
+async def _handle_long_message(update, context, settings):
+    """
+    Sends ONE warning message in the group and edits it on repeat offenses.
+    On the 3rd offense the user is muted for 5 minutes.
+    """
+    import time as _time
+    from telegram import ChatPermissions
+
+    user = update.effective_user
+    chat = update.effective_chat
+    key  = (chat.id, user.id)
+
+    entry = longmsg_tracker.get(key, {"msg_id": None, "count": 0})
+    count = entry["count"] + 1
+    limit = settings["max_message_length"]
+
+    MUTE_AT = 3
+    bars = "🟥" * count + "⬜" * (MUTE_AT - count)
+
+    if count < MUTE_AT:
+        text = (
+            f"✂️ {user.mention_html()}, tu mensaje superó el límite de <b>{limit}</b> caracteres y fue eliminado.\n"
+            f"⚠️ Advertencia <b>{count}/{MUTE_AT}</b>  {bars}"
+        )
+    else:
+        text = (
+            f"✂️ {user.mention_html()}, tu mensaje superó el límite de <b>{limit}</b> caracteres y fue eliminado.\n"
+            f"🔇 Advertencia <b>{count}/{MUTE_AT}</b>  {bars} — Has sido silenciado 5 minutos."
+        )
+
+    # Try to edit the existing warning message, fall back to sending a new one
+    sent_id = None
+    if entry["msg_id"]:
+        try:
+            await context.bot.edit_message_text(
+                chat_id=chat.id,
+                message_id=entry["msg_id"],
+                text=text,
+                parse_mode="HTML",
+            )
+            sent_id = entry["msg_id"]
+        except Exception:
+            sent_id = None
+
+    if sent_id is None:
+        try:
+            sent = await context.bot.send_message(chat.id, text, parse_mode="HTML")
+            sent_id = sent.message_id
+        except Exception as e:
+            logger.warning("Error al enviar aviso de mensaje largo: %s", e)
+
+    if count >= MUTE_AT:
+        # Mute for 5 minutes
+        try:
+            until = int(_time.time()) + 300
+            await context.bot.restrict_chat_member(
+                chat.id,
+                user.id,
+                ChatPermissions(can_send_messages=False),
+                until_date=until,
+            )
+        except Exception as e:
+            logger.warning("Error al silenciar por mensajes largos: %s", e)
+        # Reset tracker after mute
+        longmsg_tracker.pop(key, None)
+    else:
+        longmsg_tracker[key] = {"msg_id": sent_id, "count": count}
 
 
 def _is_flooding(chat_id: int, user_id: int, limit: int, window: int) -> bool:
