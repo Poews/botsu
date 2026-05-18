@@ -44,6 +44,7 @@ from handlers.personal import (
     personales_command,
 )
 from handlers.settings import set_command, settings_command
+from handlers.staff import staff_command
 from handlers.verify import start_verify, verify_callback
 from handlers.welcome import welcome_new_member
 
@@ -87,6 +88,9 @@ def main() -> None:
 
     # Clean deleted accounts
     app.add_handler(CommandHandler("kickdeleted", kickdeleted_command))
+
+    # Staff list
+    app.add_handler(CommandHandler("staff",       staff_command))
 
     # Admin actions
     app.add_handler(CommandHandler("ban",      ban_command))

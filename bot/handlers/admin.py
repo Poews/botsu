@@ -469,6 +469,7 @@ async def cmds_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "  /start — Iniciar el bot\n"
         "  /help — Mostrar ayuda\n"
         "  /cmds — Esta lista\n"
+        "  /staff — Ver equipo de administración\n"
     )
     await update.message.reply_text(text, parse_mode="HTML")
 
