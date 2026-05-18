@@ -6,7 +6,7 @@ from db import get_settings
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_WELCOME = "🟢 (+) <b>{nombre}</b> es el usuario <code>{id}</code>"
+DEFAULT_WELCOME = "🟢 (+) <b>{usuario}</b> es el usuario <code>{id}</code>"
 
 
 def _member_joined(update: ChatMemberUpdated) -> bool:
@@ -31,11 +31,13 @@ async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
 
     full_name = " ".join(p for p in [user.first_name or "", user.last_name or ""] if p).strip()
+    has_username = bool(user.username)
+    display = f"@{user.username}" if has_username else full_name
 
     settings = await get_settings(chat.id)
     template = settings.get("welcome_message") or DEFAULT_WELCOME
 
-    text = template.replace("{usuario}", user.mention_html())
+    text = template.replace("{usuario}", display)
     text = text.replace("{nombre}",  full_name)
     text = text.replace("{grupo}",   chat.title or "")
     text = text.replace("{id}",      str(user.id))
@@ -44,3 +46,17 @@ async def welcome_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await context.bot.send_message(chat.id, text, parse_mode="HTML")
     except Exception as e:
         logger.warning("Error al enviar bienvenida: %s", e)
+
+    if not has_username:
+        try:
+            await context.bot.send_message(
+                user.id,
+                f"👋 ¡Bienvenido/a al grupo <b>{chat.title}</b>!\n\n"
+                f"📌 Notamos que <b>no tienes un @usuario</b> configurado en tu cuenta de Telegram.\n\n"
+                f"Te pedimos que establezcas uno para poder identificarte correctamente en el grupo. "
+                f"Puedes hacerlo desde:\n"
+                f"<b>Ajustes → Editar perfil → Nombre de usuario</b>",
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass

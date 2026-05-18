@@ -127,9 +127,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def _handle_long_message(update, context, settings):
     """
     Sends ONE warning message in the group and edits it on repeat offenses.
-    On the 3rd offense the user is muted for 5 minutes.
+    On the 3rd offense the user is muted permanently.
     """
-    import time as _time
     from telegram import ChatPermissions
 
     user = update.effective_user
@@ -146,12 +145,13 @@ async def _handle_long_message(update, context, settings):
     if count < MUTE_AT:
         text = (
             f"✂️ {user.mention_html()}, tu mensaje superó el límite de <b>{limit}</b> caracteres y fue eliminado.\n"
-            f"⚠️ Advertencia <b>{count}/{MUTE_AT}</b>  {bars}"
+            f"⚠️ Advertencia <b>{count}/{MUTE_AT}</b>  {bars}\n"
+            f"<i>A la 3ª advertencia serás muteado permanentemente.</i>"
         )
     else:
         text = (
             f"✂️ {user.mention_html()}, tu mensaje superó el límite de <b>{limit}</b> caracteres y fue eliminado.\n"
-            f"🔇 Advertencia <b>{count}/{MUTE_AT}</b>  {bars} — Has sido silenciado 5 minutos."
+            f"🔇 Advertencia <b>{count}/{MUTE_AT}</b>  {bars} — <b>Muteado permanentemente.</b>"
         )
 
     # Try to edit the existing warning message, fall back to sending a new one
@@ -176,14 +176,12 @@ async def _handle_long_message(update, context, settings):
             logger.warning("Error al enviar aviso de mensaje largo: %s", e)
 
     if count >= MUTE_AT:
-        # Mute for 5 minutes
+        # Mute permanently (no until_date = indefinite)
         try:
-            until = int(_time.time()) + 300
             await context.bot.restrict_chat_member(
                 chat.id,
                 user.id,
                 ChatPermissions(can_send_messages=False),
-                until_date=until,
             )
         except Exception as e:
             logger.warning("Error al silenciar por mensajes largos: %s", e)
