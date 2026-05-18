@@ -281,6 +281,55 @@ async def warnings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("\n".join(lines), parse_mode="HTML")
 
 
+async def cmds_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/cmds — lista completa de comandos del bot."""
+    text = (
+        "📋 <b>Comandos disponibles</b>\n"
+        "\n"
+        "👮 <b>Moderación</b>\n"
+        "  /ban — Banear usuario\n"
+        "  /unban — Desbanear usuario\n"
+        "  /kick — Expulsar usuario\n"
+        "  /mute — Silenciar usuario\n"
+        "  /unmute — Quitar silencio\n"
+        "  /warn — Advertir usuario\n"
+        "  /unwarn — Quitar advertencia\n"
+        "  /warnings — Ver advertencias de un usuario\n"
+        "\n"
+        "⚙️ <b>Configuración</b>\n"
+        "  /settings — Ver configuración actual del grupo\n"
+        "  /set — Cambiar una configuración\n"
+        "  /reload — Limpiar caché y verificar estado\n"
+        "\n"
+        "📝 <b>Notas</b>\n"
+        "  /nota — Guardar nota sobre un usuario\n"
+        "  /notas — Ver notas de un usuario\n"
+        "  /borrarnota — Eliminar una nota\n"
+        "\n"
+        "🚫 <b>Lista negra</b>\n"
+        "  /addpalabra — Añadir palabra prohibida\n"
+        "  /quitarpalabra — Quitar palabra prohibida\n"
+        "  /palabras — Ver palabras prohibidas\n"
+        "  /limpiarpalabras — Borrar toda la lista negra\n"
+        "\n"
+        "🤖 <b>Comandos personales</b>\n"
+        "  /personal — Crear comando personalizado\n"
+        "  /personales — Ver comandos creados\n"
+        "  /borrarpersonal — Eliminar comando personalizado\n"
+        "\n"
+        "📊 <b>Estadísticas y reportes</b>\n"
+        "  /estadisticas — Ver estadísticas del grupo\n"
+        "  /report — Reportar un mensaje (responder al mensaje)\n"
+        "  /reportes — Ver reportes pendientes (admins)\n"
+        "\n"
+        "ℹ️ <b>General</b>\n"
+        "  /start — Iniciar el bot\n"
+        "  /help — Mostrar ayuda\n"
+        "  /cmds — Esta lista\n"
+    )
+    await update.message.reply_text(text, parse_mode="HTML")
+
+
 async def reload_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     /reload — limpia cachés en memoria y confirma que el bot está activo.

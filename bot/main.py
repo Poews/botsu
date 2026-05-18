@@ -13,6 +13,7 @@ from telegram.ext import (
 from db import init_db
 from handlers.admin import (
     ban_command,
+    cmds_command,
     help_command,
     kick_command,
     mute_command,
@@ -71,6 +72,7 @@ def main() -> None:
     # Help & info
     app.add_handler(CommandHandler("start",    help_command))
     app.add_handler(CommandHandler("help",     help_command))
+    app.add_handler(CommandHandler("cmds",     cmds_command))
     app.add_handler(CommandHandler("reload",   reload_command))
 
     # Admin actions
