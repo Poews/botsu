@@ -20,11 +20,15 @@ async def init_db():
                 welcome_message TEXT DEFAULT NULL
             )
         """)
-        # Migrate existing databases that don't have the welcome_message column yet
-        try:
-            await db.execute("ALTER TABLE group_settings ADD COLUMN welcome_message TEXT DEFAULT NULL")
-        except Exception:
-            pass  # Column already exists
+        # Migrations for existing databases
+        for migration in [
+            "ALTER TABLE group_settings ADD COLUMN welcome_message TEXT DEFAULT NULL",
+            "ALTER TABLE group_settings ADD COLUMN log_channel INTEGER DEFAULT NULL",
+        ]:
+            try:
+                await db.execute(migration)
+            except Exception:
+                pass  # Column already exists
         await db.execute("""
             CREATE TABLE IF NOT EXISTS notes (
                 id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -121,6 +125,7 @@ async def get_settings(chat_id: int) -> dict:
                 "delete_links": 0,
                 "anti_forward": 0,
                 "welcome_message": None,
+                "log_channel": None,
             }
 
 

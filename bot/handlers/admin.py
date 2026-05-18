@@ -5,6 +5,7 @@ from telegram import Update, ChatPermissions
 from telegram.ext import ContextTypes
 
 from db import get_settings, add_warning, get_warnings, remove_warning, clear_warnings, get_all_user_ids
+from handlers.logchannel import log_event
 from handlers.stats import increment_stat
 from utils.helpers import is_admin, get_target_from_message, parse_duration
 
@@ -64,6 +65,8 @@ async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📝 Razón: {reason}",
             parse_mode="HTML",
         )
+        await log_event(context.bot, chat.id, chat.title, "BAN", mention, user_id,
+                        admin=update.effective_user.mention_html(), reason=reason)
     except Exception as e:
         await update.message.reply_text(f"❌ No se pudo banear al usuario: {e}")
 
@@ -82,6 +85,8 @@ async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"✅ El usuario {mention} ha sido <b>desbaneado</b> correctamente.",
             parse_mode="HTML",
         )
+        await log_event(context.bot, chat.id, chat.title, "DESBAN", mention, user_id,
+                        admin=update.effective_user.mention_html())
     except Exception as e:
         await update.message.reply_text(f"❌ No se pudo desbanear al usuario: {e}")
 
@@ -110,6 +115,8 @@ async def kick_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📝 Razón: {reason}",
             parse_mode="HTML",
         )
+        await log_event(context.bot, chat.id, chat.title, "KICK", mention, user_id,
+                        admin=update.effective_user.mention_html(), reason=reason)
     except Exception as e:
         await update.message.reply_text(f"❌ No se pudo expulsar al usuario: {e}")
 
@@ -148,6 +155,8 @@ async def mute_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML",
         )
         await increment_stat(chat.id, user_id, str(user_id), "mutes")
+        await log_event(context.bot, chat.id, chat.title, "MUTE", mention, user_id,
+                        admin=update.effective_user.mention_html(), extra=f"Duración: {duration_text}")
     except Exception as e:
         await update.message.reply_text(f"❌ No se pudo silenciar al usuario: {e}")
 
@@ -184,6 +193,8 @@ async def unmute_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🔊 El silencio de {mention} ha sido levantado correctamente.",
             parse_mode="HTML",
         )
+        await log_event(context.bot, chat.id, chat.title, "DESMUTE", mention, user_id,
+                        admin=update.effective_user.mention_html())
     except Exception as e:
         await update.message.reply_text(f"❌ No se pudo quitar el silencio al usuario: {e}")
 
@@ -219,6 +230,9 @@ async def warn_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"🔨 Límite alcanzado — el usuario ha sido <b>baneado automáticamente</b>.",
                 parse_mode="HTML",
             )
+            await log_event(context.bot, chat.id, chat.title, "BAN", mention, user_id,
+                            admin=update.effective_user.mention_html(),
+                            reason=reason, extra=f"Ban automático ({warn_count}/{warn_limit} advertencias)")
         except Exception as e:
             await update.message.reply_text(f"❌ No se pudo aplicar el ban automático: {e}")
     else:
@@ -229,6 +243,9 @@ async def warn_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🔢 Advertencias: {warn_count}/{warn_limit}",
             parse_mode="HTML",
         )
+        await log_event(context.bot, chat.id, chat.title, "ADVERTENCIA", mention, user_id,
+                        admin=update.effective_user.mention_html(),
+                        reason=reason, extra=f"Advertencias: {warn_count}/{warn_limit}")
 
 
 async def unwarn_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -250,6 +267,9 @@ async def unwarn_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🔢 Advertencias restantes: {len(remaining)}/{settings['warn_limit']}",
             parse_mode="HTML",
         )
+        await log_event(context.bot, chat.id, chat.title, "QUITAR WARN", mention, user_id,
+                        admin=update.effective_user.mention_html(),
+                        extra=f"Advertencias restantes: {len(remaining)}/{settings['warn_limit']}")
     else:
         await update.message.reply_text(
             f"ℹ️ {mention} no tiene advertencias registradas.",

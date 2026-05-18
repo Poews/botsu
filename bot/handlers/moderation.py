@@ -8,6 +8,7 @@ from telegram.ext import ContextTypes
 from db import get_settings
 from handlers.stats import increment_stat
 from handlers.blacklist import check_blacklist
+from handlers.logchannel import log_event
 from utils.helpers import is_admin
 
 logger = logging.getLogger(__name__)
@@ -72,6 +73,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 logger.warning("Error al silenciar por flood: %s", e)
             await increment_stat(chat.id, user.id, name, "floods")
             await increment_stat(chat.id, user.id, name, "mutes")
+            await log_event(context.bot, chat.id, chat.title, "FLOOD",
+                            user.mention_html(), user.id, reason="Flood detectado", extra="Silenciado 1 minuto")
             return
 
     if settings["anti_spam"] and text:
@@ -89,6 +92,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception as e:
                 logger.warning("Error al notificar spam: %s", e)
             await increment_stat(chat.id, user.id, name, "spam")
+            await log_event(context.bot, chat.id, chat.title, "SPAM",
+                            user.mention_html(), user.id, reason="Mensajes repetitivos")
             return
 
     if settings["max_message_length"] and len(text) > settings["max_message_length"]:
@@ -185,6 +190,10 @@ async def _handle_long_message(update, context, settings):
             )
         except Exception as e:
             logger.warning("Error al silenciar por mensajes largos: %s", e)
+        await log_event(context.bot, chat.id, chat.title, "MUTE AUTO",
+                        user.mention_html(), user.id,
+                        reason=f"Mensajes demasiado largos (límite: {limit} caracteres)",
+                        extra="Muteado permanentemente")
         # Reset tracker after mute
         longmsg_tracker.pop(key, None)
     else:

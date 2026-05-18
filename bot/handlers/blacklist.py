@@ -4,6 +4,7 @@ import aiosqlite
 from db import DB_PATH, add_warning, get_settings, clear_warnings
 from telegram import Update, ChatPermissions
 from telegram.ext import ContextTypes
+from handlers.logchannel import log_event
 from utils.helpers import is_admin
 
 logger = logging.getLogger(__name__)
@@ -109,6 +110,8 @@ async def check_blacklist(
             )
         except Exception:
             pass
+        await log_event(context.bot, chat.id, chat.title, "LISTA NEGRA",
+                        user.mention_html(), user.id, reason=f'Palabra prohibida: "{word}"', extra="Acción: eliminar")
 
     elif action == "warn":
         settings = await get_settings(chat.id)
@@ -125,6 +128,10 @@ async def check_blacklist(
                     f"🔨 Has sido <b>baneado automáticamente</b>.",
                     parse_mode="HTML",
                 )
+                await log_event(context.bot, chat.id, chat.title, "BAN",
+                                user.mention_html(), user.id,
+                                reason=f'Palabra prohibida: "{word}"',
+                                extra=f"Ban automático ({warn_count}/{warn_limit} advertencias)")
             except Exception as e:
                 logger.warning("Error en auto-ban por blacklist: %s", e)
         else:
@@ -137,6 +144,10 @@ async def check_blacklist(
                 )
             except Exception:
                 pass
+            await log_event(context.bot, chat.id, chat.title, "LISTA NEGRA",
+                            user.mention_html(), user.id,
+                            reason=f'Palabra prohibida: "{word}"',
+                            extra=f"Advertencia {warn_count}/{warn_limit}")
 
     elif action == "mute":
         import time
@@ -154,6 +165,9 @@ async def check_blacklist(
                 f"Has sido silenciado por 5 minutos.",
                 parse_mode="HTML",
             )
+            await log_event(context.bot, chat.id, chat.title, "LISTA NEGRA",
+                            user.mention_html(), user.id,
+                            reason=f'Palabra prohibida: "{word}"', extra="Acción: mute 5 minutos")
         except Exception as e:
             logger.warning("Error al silenciar por blacklist: %s", e)
 

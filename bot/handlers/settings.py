@@ -25,7 +25,7 @@ ON_VALUES  = {"on", "true", "yes", "1", "enable", "activar", "si", "sí"}
 OFF_VALUES = {"off", "false", "no", "0", "disable", "desactivar"}
 
 ALL_OPTIONS = (
-    list(TOGGLE_SETTINGS) + list(NUMBER_SETTINGS) + ["welcome"]
+    list(TOGGLE_SETTINGS) + list(NUMBER_SETTINGS) + ["welcome", "logchannel"]
 )
 
 
@@ -44,6 +44,8 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     welcome_raw = s.get("welcome_message")
     welcome_display = f"<code>{welcome_raw}</code>" if welcome_raw else "❌ Desactivado"
+    log_ch = s.get("log_channel")
+    log_display = f"<code>{log_ch}</code>" if log_ch else "❌ No configurado"
 
     text = (
         f"⚙️ <b>Configuración — {chat.title}</b>\n\n"
@@ -55,9 +57,9 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"⚠️ Límite de advertencias: {s['warn_limit']} → ban automático\n"
         f"🔗 Eliminar enlaces:       {yn(s['delete_links'])}\n"
         f"📤 Anti-reenvío:           {yn(s['anti_forward'])}\n"
-        f"👋 Bienvenida:             {welcome_display}\n\n"
-        f"<i>Variables disponibles en la bienvenida: "
-        f"{{usuario}}, {{nombre}}, {{grupo}}</i>\n\n"
+        f"👋 Bienvenida:             {welcome_display}\n"
+        f"📋 Canal de logs:          {log_display}\n\n"
+        f"<i>Variables bienvenida: {{usuario}}, {{nombre}}, {{grupo}}</i>\n\n"
         f"Usa /set [opción] [valor] para cambiar la configuración.\n"
         f"Usa /help para ver todos los comandos."
     )
@@ -94,6 +96,49 @@ async def set_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             f"❌ Uso: /set {option} [valor]"
         )
+        return
+
+    # ── logchannel ────────────────────────────────────────────────────────────
+    if option == "logchannel":
+        value_str = args[1].strip()
+        if value_str.lower() in OFF_VALUES:
+            await update_setting(chat.id, "log_channel", None)
+            await update.message.reply_text(
+                "📋 Canal de logs <b>desactivado</b>.",
+                parse_mode="HTML",
+            )
+        else:
+            if not value_str.lstrip("-").isdigit():
+                await update.message.reply_text(
+                    "❌ Uso: <code>/set logchannel -100xxxxxxxxxx</code>\n\n"
+                    "1️⃣ Agrega el bot a tu canal como administrador.\n"
+                    "2️⃣ Reenvía cualquier mensaje del canal al bot en privado "
+                    "para obtener el ID (empieza con -100...).\n"
+                    "3️⃣ Usa ese ID aquí.",
+                    parse_mode="HTML",
+                )
+                return
+            channel_id = int(value_str)
+            # Verify the bot can send to that channel
+            try:
+                test = await context.bot.send_message(
+                    channel_id,
+                    "✅ Canal de logs conectado correctamente.",
+                    parse_mode="HTML",
+                )
+                await update_setting(chat.id, "log_channel", channel_id)
+                await update.message.reply_text(
+                    f"📋 Canal de logs configurado correctamente.\n"
+                    f"Todas las acciones de moderación se registrarán allí.",
+                    parse_mode="HTML",
+                )
+            except Exception as e:
+                await update.message.reply_text(
+                    f"❌ No pude enviar al canal <code>{channel_id}</code>.\n"
+                    f"Asegúrate de que el bot es <b>administrador</b> del canal.\n\n"
+                    f"Error: <code>{e}</code>",
+                    parse_mode="HTML",
+                )
         return
 
     # ── welcome: takes the rest of the message as free text ──────────────────
