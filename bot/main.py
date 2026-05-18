@@ -16,6 +16,7 @@ from handlers.admin import (
     help_command,
     kick_command,
     mute_command,
+    reload_command,
     unban_command,
     unmute_command,
     unwarn_command,
@@ -70,6 +71,7 @@ def main() -> None:
     # Help & info
     app.add_handler(CommandHandler("start",    help_command))
     app.add_handler(CommandHandler("help",     help_command))
+    app.add_handler(CommandHandler("reload",   reload_command))
 
     # Admin actions
     app.add_handler(CommandHandler("ban",      ban_command))

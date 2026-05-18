@@ -279,3 +279,39 @@ async def warnings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for i, w in enumerate(warnings, 1):
         lines.append(f"{i}. {w['reason']}  <i>({w['warned_at']})</i>")
     await update.message.reply_text("\n".join(lines), parse_mode="HTML")
+
+
+async def reload_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /reload — limpia cachés en memoria y confirma que el bot está activo.
+    Solo admins.
+    """
+    if not await is_admin(update, context):
+        return
+
+    from handlers.moderation import flood_tracker, spam_tracker
+
+    flood_count = len(flood_tracker)
+    spam_count  = len(spam_tracker)
+
+    flood_tracker.clear()
+    spam_tracker.clear()
+
+    chat = update.effective_chat
+    settings = await get_settings(chat.id)
+
+    def yn(v): return "✅" if v else "❌"
+
+    await update.message.reply_text(
+        f"🔄 <b>Bot recargado correctamente.</b>\n\n"
+        f"🗑️ Caché limpiado:\n"
+        f"   ├ Flood tracker: <b>{flood_count}</b> entradas eliminadas\n"
+        f"   └ Spam tracker:  <b>{spam_count}</b> entradas eliminadas\n\n"
+        f"⚙️ Configuración activa:\n"
+        f"   ├ Anti-spam:   {yn(settings['anti_spam'])}\n"
+        f"   ├ Anti-flood:  {yn(settings['anti_flood'])}\n"
+        f"   ├ Blacklist:   ✅\n"
+        f"   └ Bienvenida:  {'✅' if settings.get('welcome_message') else '🟢 (por defecto)'}\n\n"
+        f"🤖 El bot está activo y escuchando.",
+        parse_mode="HTML",
+    )
