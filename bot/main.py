@@ -13,6 +13,7 @@ from telegram.ext import (
 
 from db import init_db
 from handlers.admin import (
+    all_command,
     ban_command,
     cmds_command,
     free_command,
@@ -97,7 +98,10 @@ def main() -> None:
     app.add_handler(CommandHandler("unfree", unfree_command))
 
     # ID info
-    app.add_handler(CommandHandler("id", id_command))
+    app.add_handler(CommandHandler("id",  id_command))
+
+    # Mention all
+    app.add_handler(CommandHandler("all", all_command))
 
     # Staff list
     app.add_handler(CommandHandler("staff",       staff_command))

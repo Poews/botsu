@@ -419,6 +419,38 @@ async def unfree_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"⚠️ {mention} no tenía pase libre.", parse_mode="HTML")
 
 
+async def all_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /all — menciona a todos los usuarios registrados en el grupo.
+    Solo admins.
+    """
+    if not await is_admin(update, context):
+        return
+    chat = update.effective_chat
+    user_ids = await get_all_user_ids(chat.id)
+    if not user_ids:
+        await update.message.reply_text("⚠️ No hay usuarios registrados aún.")
+        return
+
+    # Build mention list in chunks of 20 to avoid overly long messages
+    mentions = []
+    for uid in user_ids:
+        mentions.append(f'<a href="tg://user?id={uid}">​</a>')
+
+    # Send a visible message with all silent mentions (invisible zero-width chars)
+    # Plus a readable header
+    CHUNK = 50
+    first = True
+    for i in range(0, len(mentions), CHUNK):
+        chunk = mentions[i:i + CHUNK]
+        if first:
+            text = f"📢 <b>Mención general</b> — {len(user_ids)} miembros\n" + "".join(chunk)
+            first = False
+        else:
+            text = "".join(chunk)
+        await update.message.reply_text(text, parse_mode="HTML")
+
+
 async def id_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     /id — muestra el ID del grupo o del usuario.
@@ -557,6 +589,7 @@ async def cmds_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "  /cmds — Esta lista\n"
         "  /staff — Ver equipo de administración\n"
         "  /id — Ver ID del grupo y propio\n"
+        "  /all — Mencionar a todos los miembros\n"
     )
     await update.message.reply_text(text, parse_mode="HTML")
 
