@@ -419,6 +419,25 @@ async def unfree_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"⚠️ {mention} no tenía pase libre.", parse_mode="HTML")
 
 
+async def id_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /id — muestra el ID del grupo o del usuario.
+    """
+    chat = update.effective_chat
+    user = update.effective_user
+    if chat.type in ("group", "supergroup"):
+        await update.message.reply_text(
+            f"🏠 <b>ID del grupo:</b> <code>{chat.id}</code>\n"
+            f"👤 <b>Tu ID:</b> <code>{user.id}</code>",
+            parse_mode="HTML",
+        )
+    else:
+        await update.message.reply_text(
+            f"👤 <b>Tu ID:</b> <code>{user.id}</code>",
+            parse_mode="HTML",
+        )
+
+
 async def say_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     /say <mensaje>          — (en grupo) borra tu comando y envía el texto como el bot.
@@ -537,6 +556,7 @@ async def cmds_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "  /help — Mostrar ayuda\n"
         "  /cmds — Esta lista\n"
         "  /staff — Ver equipo de administración\n"
+        "  /id — Ver ID del grupo y propio\n"
     )
     await update.message.reply_text(text, parse_mode="HTML")
 

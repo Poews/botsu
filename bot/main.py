@@ -17,6 +17,7 @@ from handlers.admin import (
     cmds_command,
     free_command,
     help_command,
+    id_command,
     kick_command,
     kickdeleted_command,
     mute_command,
@@ -94,6 +95,9 @@ def main() -> None:
     # Free pass
     app.add_handler(CommandHandler("free",   free_command))
     app.add_handler(CommandHandler("unfree", unfree_command))
+
+    # ID info
+    app.add_handler(CommandHandler("id", id_command))
 
     # Staff list
     app.add_handler(CommandHandler("staff",       staff_command))
