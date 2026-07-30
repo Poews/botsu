@@ -15,6 +15,7 @@ from db import init_db
 from handlers.admin import (
     ban_command,
     cmds_command,
+    free_command,
     help_command,
     kick_command,
     kickdeleted_command,
@@ -22,6 +23,7 @@ from handlers.admin import (
     reload_command,
     say_command,
     unban_command,
+    unfree_command,
     unmute_command,
     unwarn_command,
     warn_command,
@@ -88,6 +90,10 @@ def main() -> None:
 
     # Clean deleted accounts
     app.add_handler(CommandHandler("kickdeleted", kickdeleted_command))
+
+    # Free pass
+    app.add_handler(CommandHandler("free",   free_command))
+    app.add_handler(CommandHandler("unfree", unfree_command))
 
     # Staff list
     app.add_handler(CommandHandler("staff",       staff_command))

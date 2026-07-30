@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from telegram import Update, ChatPermissions
 from telegram.ext import ContextTypes
 
-from db import get_settings, add_warning, get_warnings, remove_warning, clear_warnings, get_all_user_ids
+from db import get_settings, add_warning, get_warnings, remove_warning, clear_warnings, get_all_user_ids, add_free_user, remove_free_user
 from handlers.logchannel import log_event
 from handlers.stats import increment_stat
 from utils.helpers import is_admin, get_target_from_message, parse_duration
@@ -374,6 +374,51 @@ async def kickdeleted_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     await status_msg.edit_text(result, parse_mode="HTML")
 
 
+async def free_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /free — da a un usuario el privilegio de saltarse anti-spam y anti-flood.
+    Solo admins.
+    """
+    if not await is_admin(update, context):
+        return
+    chat = update.effective_chat
+    user_id, mention = await get_target_from_message(update, context)
+    if not user_id:
+        await update.message.reply_text("❓ Responde el mensaje de un usuario o proporciona su ID.")
+        return
+    await add_free_user(chat.id, user_id)
+    await update.message.reply_text(
+        f"✅ {mention} ahora tiene pase libre — no será sancionado por spam ni flood.",
+        parse_mode="HTML",
+    )
+    await log_event(context.bot, chat.id, chat.title, "FREE",
+                    mention, user_id, reason="Pase libre concedido por admin")
+
+
+async def unfree_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /unfree — quita el pase libre a un usuario.
+    Solo admins.
+    """
+    if not await is_admin(update, context):
+        return
+    chat = update.effective_chat
+    user_id, mention = await get_target_from_message(update, context)
+    if not user_id:
+        await update.message.reply_text("❓ Responde el mensaje de un usuario o proporciona su ID.")
+        return
+    removed = await remove_free_user(chat.id, user_id)
+    if removed:
+        await update.message.reply_text(
+            f"🔒 {mention} ya no tiene pase libre y vuelve a estar sujeto a las reglas del grupo.",
+            parse_mode="HTML",
+        )
+        await log_event(context.bot, chat.id, chat.title, "UNFREE",
+                        mention, user_id, reason="Pase libre retirado por admin")
+    else:
+        await update.message.reply_text(f"⚠️ {mention} no tenía pase libre.", parse_mode="HTML")
+
+
 async def say_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     /say <mensaje>          — (en grupo) borra tu comando y envía el texto como el bot.
@@ -457,6 +502,8 @@ async def cmds_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "  /unwarn — Quitar advertencia\n"
         "  /warnings — Ver advertencias de un usuario\n"
         "  /kickdeleted — Expulsar cuentas eliminadas\n"
+        "  /free — Dar pase libre a un usuario (sin sanciones)\n"
+        "  /unfree — Quitar pase libre a un usuario\n"
         "\n"
         "⚙️ <b>Configuración</b>\n"
         "  /settings — Ver configuración actual del grupo\n"

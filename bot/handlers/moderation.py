@@ -5,7 +5,7 @@ from collections import defaultdict, deque
 from telegram import Update, ChatPermissions
 from telegram.ext import ContextTypes
 
-from db import get_settings
+from db import get_settings, is_free_user
 from handlers.stats import increment_stat
 from handlers.blacklist import check_blacklist
 from handlers.logchannel import log_event
@@ -39,6 +39,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if await is_admin(update, context):
+        return
+
+    if await is_free_user(chat.id, user.id):
+        await increment_stat(chat.id, user.id, name, "messages")
         return
 
     settings = await get_settings(chat.id)

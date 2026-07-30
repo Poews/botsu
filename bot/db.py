@@ -20,6 +20,13 @@ async def init_db():
                 welcome_message TEXT DEFAULT NULL
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS free_users (
+                chat_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                PRIMARY KEY (chat_id, user_id)
+            )
+        """)
         # Migrations for existing databases
         for migration in [
             "ALTER TABLE group_settings ADD COLUMN welcome_message TEXT DEFAULT NULL",
@@ -178,6 +185,34 @@ async def remove_warning(chat_id: int, user_id: int) -> bool:
             await db.execute("DELETE FROM warnings WHERE id = ?", (row[0],))
             await db.commit()
             return True
+
+
+async def add_free_user(chat_id: int, user_id: int) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT OR IGNORE INTO free_users (chat_id, user_id) VALUES (?, ?)",
+            (chat_id, user_id),
+        )
+        await db.commit()
+
+
+async def remove_free_user(chat_id: int, user_id: int) -> bool:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "DELETE FROM free_users WHERE chat_id = ? AND user_id = ?",
+            (chat_id, user_id),
+        )
+        await db.commit()
+        return cursor.rowcount > 0
+
+
+async def is_free_user(chat_id: int, user_id: int) -> bool:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT 1 FROM free_users WHERE chat_id = ? AND user_id = ?",
+            (chat_id, user_id),
+        ) as cursor:
+            return await cursor.fetchone() is not None
 
 
 async def clear_warnings(chat_id: int, user_id: int) -> None:
