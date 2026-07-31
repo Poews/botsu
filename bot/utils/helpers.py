@@ -41,10 +41,15 @@ async def get_target_from_message(update: Update, context: ContextTypes.DEFAULT_
         except ValueError:
             pass
 
-        # @username — resolve via get_chat_member
+        # @username — resolve user_id via get_chat first, then get_chat_member
         try:
-            member = await context.bot.get_chat_member(update.effective_chat.id, target)
-            return member.user.id, member.user.mention_html()
+            chat_user = await context.bot.get_chat(f"@{target}")
+            user_id = chat_user.id
+            try:
+                member = await context.bot.get_chat_member(update.effective_chat.id, user_id)
+                return user_id, member.user.mention_html()
+            except Exception:
+                return user_id, f'<a href="tg://user?id={user_id}">@{target}</a>'
         except Exception:
             pass
 
