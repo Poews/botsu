@@ -1,3 +1,4 @@
+import asyncio
 import time
 import re
 import logging
@@ -24,10 +25,22 @@ URL_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+AUTO_DELETE_SECONDS = 8
+
 
 def _display_name(user) -> str:
     parts = [user.first_name or "", user.last_name or ""]
     return " ".join(p for p in parts if p).strip() or str(user.id)
+
+
+async def _send_and_delete(bot, chat_id: int, text: str, delay: int = AUTO_DELETE_SECONDS, **kwargs):
+    """Send a message and delete it after `delay` seconds."""
+    try:
+        msg = await bot.send_message(chat_id, text, **kwargs)
+        await asyncio.sleep(delay)
+        await msg.delete()
+    except Exception as e:
+        logger.warning("_send_and_delete error: %s", e)
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -41,13 +54,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await is_admin(update, context):
         return
 
+    name = _display_name(user)
+
     if await is_free_user(chat.id, user.id):
         await increment_stat(chat.id, user.id, name, "messages")
         return
 
     settings = await get_settings(chat.id)
     text = message.text or message.caption or ""
-    name = _display_name(user)
 
     # Blacklist check runs first
     if text and await check_blacklist(update, context, text):
@@ -67,12 +81,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     ChatPermissions(can_send_messages=False),
                     until_date=until,
                 )
-                await context.bot.send_message(
-                    chat.id,
+                asyncio.create_task(_send_and_delete(
+                    context.bot, chat.id,
                     f"⏳ {user.mention_html()}, estás enviando mensajes demasiado rápido. "
-                    f"Espera unos segundos. Has sido silenciado por 1 minuto.",
+                    f"Has sido silenciado por 1 minuto.",
                     parse_mode="HTML",
-                )
+                ))
             except Exception as e:
                 logger.warning("Error al silenciar por flood: %s", e)
             await increment_stat(chat.id, user.id, name, "floods")
@@ -87,14 +101,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await message.delete()
             except Exception:
                 pass
-            try:
-                await context.bot.send_message(
-                    chat.id,
-                    f"🚫 {user.mention_html()}, por favor evita enviar spam o mensajes repetitivos.",
-                    parse_mode="HTML",
-                )
-            except Exception as e:
-                logger.warning("Error al notificar spam: %s", e)
+            asyncio.create_task(_send_and_delete(
+                context.bot, chat.id,
+                f"🚫 {user.mention_html()}, por favor evita enviar spam o mensajes repetitivos.",
+                parse_mode="HTML",
+            ))
             await increment_stat(chat.id, user.id, name, "spam")
             await log_event(context.bot, chat.id, chat.title, "SPAM",
                             user.mention_html(), user.id, reason="Mensajes repetitivos")
@@ -120,13 +131,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if settings["delete_links"] and text and URL_PATTERN.search(text):
         try:
             await message.delete()
-            await context.bot.send_message(
-                chat.id,
-                f"🔗 {user.mention_html()}, los enlaces no están permitidos en este grupo.",
-                parse_mode="HTML",
-            )
-        except Exception as e:
-            logger.warning("Error al eliminar enlace: %s", e)
+        except Exception:
+            pass
+        asyncio.create_task(_send_and_delete(
+            context.bot, chat.id,
+            f"🔗 {user.mention_html()}, los enlaces no están permitidos en este grupo.",
+            parse_mode="HTML",
+        ))
         return
 
     # Message passed all checks — count it
@@ -163,7 +174,6 @@ async def _handle_long_message(update, context, settings):
             f"🔇 Advertencia <b>{count}/{MUTE_AT}</b>  {bars} — <b>Muteado permanentemente.</b>"
         )
 
-    # Try to edit the existing warning message, fall back to sending a new one
     sent_id = None
     if entry["msg_id"]:
         try:
@@ -185,7 +195,6 @@ async def _handle_long_message(update, context, settings):
             logger.warning("Error al enviar aviso de mensaje largo: %s", e)
 
     if count >= MUTE_AT:
-        # Mute permanently (no until_date = indefinite)
         try:
             await context.bot.restrict_chat_member(
                 chat.id,
@@ -198,10 +207,24 @@ async def _handle_long_message(update, context, settings):
                         user.mention_html(), user.id,
                         reason=f"Mensajes demasiado largos (límite: {limit} caracteres)",
                         extra="Muteado permanentemente")
-        # Reset tracker after mute
+        # Delete the warning after muting
+        if sent_id:
+            asyncio.create_task(_auto_delete_msg(context.bot, chat.id, sent_id))
         longmsg_tracker.pop(key, None)
     else:
         longmsg_tracker[key] = {"msg_id": sent_id, "count": count}
+        # Schedule auto-delete for the warning
+        if sent_id:
+            asyncio.create_task(_auto_delete_msg(context.bot, chat.id, sent_id))
+
+
+async def _auto_delete_msg(bot, chat_id: int, message_id: int, delay: int = AUTO_DELETE_SECONDS):
+    """Delete a specific message after `delay` seconds."""
+    try:
+        await asyncio.sleep(delay)
+        await bot.delete_message(chat_id, message_id)
+    except Exception:
+        pass
 
 
 def _is_flooding(chat_id: int, user_id: int, limit: int, window: int) -> bool:
