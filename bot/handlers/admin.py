@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from telegram import Update, ChatPermissions
 from telegram.ext import ContextTypes
 
-from db import get_settings, add_warning, get_warnings, remove_warning, clear_warnings, get_all_user_ids, add_free_user, remove_free_user
+from db import get_settings, add_warning, get_warnings, remove_warning, clear_warnings, get_all_user_ids, add_free_user, remove_free_user, set_staff_role, remove_staff_role
 from handlers.logchannel import log_event
 from handlers.stats import increment_stat
 from utils.helpers import is_admin, get_target_from_message, parse_duration
@@ -221,7 +221,6 @@ async def warn_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if warn_count >= warn_limit:
         try:
             await context.bot.ban_chat_member(chat.id, user_id)
-            await clear_warnings(chat.id, user_id)
             await update.message.reply_text(
                 f"⚠️ Advertencia agregada.\n"
                 f"👤 Usuario: {mention}\n"
@@ -372,6 +371,79 @@ async def kickdeleted_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
 
     await status_msg.edit_text(result, parse_mode="HTML")
+
+
+async def setrole_command(update: Update, context: ContextTypes.DEFAULT_TYPE, role: str):
+    """Dar rango admin o mod a un usuario. Solo admins de Telegram."""
+    from telegram import ChatMember
+    caller = update.effective_user
+    chat   = update.effective_chat
+    try:
+        caller_member = await context.bot.get_chat_member(chat.id, caller.id)
+        if caller_member.status not in [ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
+            return
+    except Exception:
+        return
+
+    user_id, mention = await get_target_from_message(update, context)
+    if not user_id:
+        await update.message.reply_text("❓ Responde el mensaje de un usuario o proporciona su ID.")
+        return
+
+    try:
+        target = await context.bot.get_chat_member(chat.id, user_id)
+        username = target.user.username
+    except Exception:
+        username = None
+
+    await set_staff_role(chat.id, user_id, role, username)
+    emoji = "🛡️" if role == "admin" else "⚔️"
+    label = "Administrador" if role == "admin" else "Moderador"
+    await update.message.reply_text(
+        f"{emoji} {mention} ahora tiene el rango de <b>{label}</b> en el grupo.",
+        parse_mode="HTML",
+    )
+    await log_event(context.bot, chat.id, chat.title, f"RANGO {label.upper()}",
+                    mention, user_id, admin=caller.mention_html())
+
+
+async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/admin — dar rango de Administrador a un usuario."""
+    await setrole_command(update, context, role="admin")
+
+
+async def mod_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/mod — dar rango de Moderador a un usuario."""
+    await setrole_command(update, context, role="mod")
+
+
+async def unadmin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/unadmin — quitar rango de Administrador."""
+    from telegram import ChatMember
+    caller = update.effective_user
+    chat   = update.effective_chat
+    try:
+        caller_member = await context.bot.get_chat_member(chat.id, caller.id)
+        if caller_member.status not in [ChatMember.ADMINISTRATOR, ChatMember.OWNER]:
+            return
+    except Exception:
+        return
+    user_id, mention = await get_target_from_message(update, context)
+    if not user_id:
+        await update.message.reply_text("❓ Responde el mensaje de un usuario o proporciona su ID.")
+        return
+    removed = await remove_staff_role(chat.id, user_id)
+    if removed:
+        await update.message.reply_text(
+            f"✅ Se le retiró el rango a {mention}.", parse_mode="HTML"
+        )
+    else:
+        await update.message.reply_text(f"⚠️ {mention} no tenía rango asignado.", parse_mode="HTML")
+
+
+async def unmod_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/unmod — quitar rango de Moderador."""
+    await unadmin_command(update, context)
 
 
 async def free_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -555,6 +627,10 @@ async def cmds_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "  /kickdeleted — Expulsar cuentas eliminadas\n"
         "  /free — Dar pase libre a un usuario (sin sanciones)\n"
         "  /unfree — Quitar pase libre a un usuario\n"
+        "  /admin — Dar rango de Administrador\n"
+        "  /unadmin — Quitar rango de Administrador\n"
+        "  /mod — Dar rango de Moderador\n"
+        "  /unmod — Quitar rango de Moderador\n"
         "\n"
         "⚙️ <b>Configuración</b>\n"
         "  /settings — Ver configuración actual del grupo\n"

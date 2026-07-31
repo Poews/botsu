@@ -27,6 +27,15 @@ async def init_db():
                 PRIMARY KEY (chat_id, user_id)
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS staff_roles (
+                chat_id  INTEGER NOT NULL,
+                user_id  INTEGER NOT NULL,
+                role     TEXT NOT NULL DEFAULT 'mod',
+                username TEXT,
+                PRIMARY KEY (chat_id, user_id)
+            )
+        """)
         # Migrations for existing databases
         for migration in [
             "ALTER TABLE group_settings ADD COLUMN welcome_message TEXT DEFAULT NULL",
@@ -185,6 +194,45 @@ async def remove_warning(chat_id: int, user_id: int) -> bool:
             await db.execute("DELETE FROM warnings WHERE id = ?", (row[0],))
             await db.commit()
             return True
+
+
+async def set_staff_role(chat_id: int, user_id: int, role: str, username: str = None) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT OR REPLACE INTO staff_roles (chat_id, user_id, role, username) VALUES (?, ?, ?, ?)",
+            (chat_id, user_id, role, username),
+        )
+        await db.commit()
+
+
+async def remove_staff_role(chat_id: int, user_id: int) -> bool:
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "DELETE FROM staff_roles WHERE chat_id = ? AND user_id = ?",
+            (chat_id, user_id),
+        )
+        await db.commit()
+        return cursor.rowcount > 0
+
+
+async def get_staff_role(chat_id: int, user_id: int) -> str | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT role FROM staff_roles WHERE chat_id = ? AND user_id = ?",
+            (chat_id, user_id),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else None
+
+
+async def get_all_staff(chat_id: int) -> list:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT user_id, role, username FROM staff_roles WHERE chat_id = ? ORDER BY role",
+            (chat_id,),
+        ) as cursor:
+            return [dict(r) for r in await cursor.fetchall()]
 
 
 async def add_free_user(chat_id: int, user_id: int) -> None:

@@ -13,6 +13,7 @@ from telegram.ext import (
 
 from db import init_db
 from handlers.admin import (
+    admin_command,
     all_command,
     ban_command,
     cmds_command,
@@ -21,11 +22,14 @@ from handlers.admin import (
     id_command,
     kick_command,
     kickdeleted_command,
+    mod_command,
     mute_command,
     reload_command,
     say_command,
+    unadmin_command,
     unban_command,
     unfree_command,
+    unmod_command,
     unmute_command,
     unwarn_command,
     warn_command,
@@ -102,6 +106,12 @@ def main() -> None:
 
     # Mention all
     app.add_handler(CommandHandler("all", all_command))
+
+    # Roles
+    app.add_handler(CommandHandler("admin",   admin_command))
+    app.add_handler(CommandHandler("unadmin", unadmin_command))
+    app.add_handler(CommandHandler("mod",     mod_command))
+    app.add_handler(CommandHandler("unmod",   unmod_command))
 
     # Staff list
     app.add_handler(CommandHandler("staff",       staff_command))
