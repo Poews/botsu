@@ -28,14 +28,24 @@ async def get_target_from_message(update: Update, context: ContextTypes.DEFAULT_
 
     args = context.args
     if args:
+        target = args[0].lstrip("@")
+
+        # Numeric ID
         try:
-            user_id = int(args[0])
+            user_id = int(target)
             try:
                 member = await context.bot.get_chat_member(update.effective_chat.id, user_id)
                 return user_id, member.user.mention_html()
             except Exception:
-                return user_id, f"User <code>{user_id}</code>"
+                return user_id, f"<code>{user_id}</code>"
         except ValueError:
+            pass
+
+        # @username — resolve via get_chat_member
+        try:
+            member = await context.bot.get_chat_member(update.effective_chat.id, target)
+            return member.user.id, member.user.mention_html()
+        except Exception:
             pass
 
     return None, None
