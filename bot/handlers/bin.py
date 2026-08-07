@@ -5,20 +5,19 @@ from telegram.ext import ContextTypes
 
 
 async def bin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Verificar que hayan enviado un BIN
+
     if not context.args:
         await update.message.reply_text(
-            "❌ Uso correcto:\n\n/bin 522416"
+            "❌ Uso correcto:\n/bin 522416"
         )
         return
 
     bin_number = context.args[0].strip()
 
-    # Solo permitir BIN/IIN de 6 a 8 dígitos
     if not re.fullmatch(r"\d{6,8}", bin_number):
         await update.message.reply_text(
             "❌ BIN inválido.\n\n"
-            "Introduce solamente un BIN de 6 a 8 dígitos.\n"
+            "Usa solamente 6 a 8 dígitos.\n"
             "Ejemplo: /bin 522416"
         )
         return
@@ -35,49 +34,56 @@ async def bin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if response.status_code != 200:
             await update.message.reply_text(
-                f"❌ No se encontraron datos para el BIN `{bin_number}`.",
-                parse_mode="Markdown"
+                f"❌ No se encontraron datos para {bin_number}."
             )
             return
 
         data = response.json()
 
-        scheme = data.get("scheme") or "Desconocido"
-        card_type = data.get("type") or "Desconocido"
-        brand = data.get("brand") or "Desconocido"
+        # DATOS DEL BIN
+        scheme = data.get("scheme") or "UNKNOWN"
+        card_type = data.get("type") or "UNKNOWN"
 
-        country = data.get("country", {})
-        country_name = country.get("name") or "Desconocido"
+        # En BINLIST, 'brand' contiene cosas como
+        # PREPAID RELOADABLE
+        level = data.get("brand") or "UNKNOWN"
+
+        bank = data.get("bank") or {}
+        bank_name = bank.get("name") or "UNKNOWN"
+
+        country = data.get("country") or {}
+        country_name = country.get("name") or "UNKNOWN"
         country_code = country.get("alpha2") or ""
 
-        bank = data.get("bank", {})
-        bank_name = bank.get("name") or "Desconocido"
-
-        # Emoji de bandera
+        # BANDERA
         flag = ""
+
         if len(country_code) == 2:
             flag = "".join(
-                chr(127397 + ord(char))
-                for char in country_code.upper()
+                chr(127397 + ord(letter))
+                for letter in country_code.upper()
             )
 
-        # Formato principal
-        mensaje = (
+        # =====================================================
+        # DISEÑO
+        # =====================================================
+
+        message = (
             f"📄 <b>Resultados para {bin_number}:</b>\n\n"
             f"• ✅ <b>BIN:</b> <code>{bin_number}</code>\n"
             f"• 💳 <b>Brand:</b> {scheme.upper()}\n"
             f"• 💰 <b>Type:</b> {card_type.title()}\n"
-            f"• 📊 <b>Level:</b> {brand.upper()}\n"
-            f"• 🏦 <b>Bank:</b> {bank_name}\n"
+            f"• 📊 <b>Level:</b> {level.upper()}\n"
+            f"• 🏦 <b>Bank:</b> {bank_name.upper()}\n"
             f"• 🌎 <b>Country:</b> {flag} {country_name} {flag}\n\n"
             f"<code>{bin_number} / {scheme.upper()} - "
-            f"{card_type.title()} - {brand.upper()} / "
-            f"{bank_name} - {country_name} "
+            f"{card_type.title()} - {level.upper()} / "
+            f"{bank_name.upper()} - {country_name.upper()} "
             f"[{country_code.upper()}]</code>"
         )
 
         await update.message.reply_text(
-            mensaje,
+            message,
             parse_mode="HTML"
         )
 
@@ -88,6 +94,7 @@ async def bin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         print(f"Error en /bin: {e}")
+
         await update.message.reply_text(
             "❌ Ocurrió un error al consultar el BIN."
         )
