@@ -14,6 +14,7 @@ from telegram.ext import (
 )
 
 from db import init_db
+from handlers.bin import bin_command
 from handlers.admin import (
     admin_command,
     all_command,
@@ -145,6 +146,9 @@ def main() -> None:
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("cmds", cmds_command))
     app.add_handler(CommandHandler("reload", reload_command))
+
+    # BIN lookup
+    app.add_handler(CommandHandler("bin", bin_command))
 
     # Username verification callback
     app.add_handler(
