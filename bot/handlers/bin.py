@@ -1,5 +1,6 @@
 import re
 import httpx
+
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -8,7 +9,8 @@ async def bin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not context.args:
         await update.message.reply_text(
-            "❌ Uso correcto:\n/bin 522416"
+            "❌ Uso correcto:\n"
+            "/bin 522416"
         )
         return
 
@@ -28,8 +30,8 @@ async def bin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"https://lookup.binlist.net/{bin_number}",
                 headers={
                     "Accept-Version": "3",
-                    "User-Agent": "Bot/1.0"
-                }
+                    "User-Agent": "Bot/1.0",
+                },
             )
 
         if response.status_code != 200:
@@ -40,12 +42,8 @@ async def bin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         data = response.json()
 
-        # DATOS DEL BIN
         scheme = data.get("scheme") or "UNKNOWN"
         card_type = data.get("type") or "UNKNOWN"
-
-        # En BINLIST, 'brand' contiene cosas como
-        # PREPAID RELOADABLE
         level = data.get("brand") or "UNKNOWN"
 
         bank = data.get("bank") or {}
@@ -55,7 +53,7 @@ async def bin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         country_name = country.get("name") or "UNKNOWN"
         country_code = country.get("alpha2") or ""
 
-        # BANDERA
+        # Crear bandera a partir del código del país
         flag = ""
 
         if len(country_code) == 2:
@@ -65,21 +63,25 @@ async def bin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
         # =====================================================
-        # DISEÑO
+        # RESPUESTA CON EL DISEÑO DE TU CAPTURA
         # =====================================================
 
         message = (
             f"📄 <b>Resultados para {bin_number}:</b>\n\n"
+
             f"• ✅ <b>BIN:</b> <code>{bin_number}</code>\n"
-            f"• 💳 <b>Brand:</b> {scheme.upper()}\n"
-            f"• 💰 <b>Type:</b> {card_type.title()}\n"
-            f"• 📊 <b>Level:</b> {level.upper()}\n"
-            f"• 🏦 <b>Bank:</b> {bank_name.upper()}\n"
-            f"• 🌎 <b>Country:</b> {flag} {country_name} {flag}\n\n"
-            f"<code>{bin_number} / {scheme.upper()} - "
-            f"{card_type.title()} - {level.upper()} / "
+            f"• 💳 <b>Brand:</b> <code>{scheme.upper()}</code>\n"
+            f"• 💰 <b>Type:</b> <code>{card_type.title()}</code>\n"
+            f"• 📊 <b>Level:</b> <code>{level.upper()}</code>\n"
+            f"• 🏦 <b>Bank:</b> <code>{bank_name.upper()}</code>\n"
+            f"• 🌐 <b>Country:</b> <code>{country_name.upper()}</code> {flag}\n\n"
+
+            f"<pre>"
+            f"{bin_number} / {scheme.upper()} - "
+            f"{card_type.title()} - {level.upper()} /\n"
             f"{bank_name.upper()} - {country_name.upper()} "
-            f"[{country_code.upper()}]</code>"
+            f"[{country_code.upper()}]"
+            f"</pre>"
         )
 
         await update.message.reply_text(
