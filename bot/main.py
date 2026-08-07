@@ -142,7 +142,9 @@ def main() -> None:
     )
 
     # Help & info
-    app.add_handler(CommandHandler("start", start_verify))
+    # Help & info
+app.add_handler(CommandHandler("start", start_verify))
+app.add_handler(CommandHandler("bin", bin_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("cmds", cmds_command))
     app.add_handler(CommandHandler("reload", reload_command))
